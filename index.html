@@ -67,12 +67,52 @@
       transform: rotate(-90deg);
       transform-origin: 50% 50%;
     }
-    @keyframes slideDown {
-      from { opacity: 0; transform: translate(-50%, -16px); }
-      to { opacity: 1; transform: translate(-50%, 0); }
+    /* Centered toast: its animation no longer changes the overlay's position. */
+    @keyframes toastPop {
+      from { opacity: 0; transform: translateY(14px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .toast-enter {
-      animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* The selected day's calorie budget determines the ambient app color.
+       warning: >100% and <=110%; danger: >110% of effective daily budget. */
+    body, #calorieHero, #topNavBar, #statEaten, #toastBox {
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    }
+    body[data-budget-level="warning"] { background-color: #fff4e8; }
+    .dark body[data-budget-level="warning"] { background-color: #1c1614; }
+    body[data-budget-level="danger"] { background-color: #ffe8e8; }
+    .dark body[data-budget-level="danger"] { background-color: #2b1118; }
+
+    body[data-budget-level="warning"] #calorieHero {
+      background-color: #fff0dc; border-color: #f97316;
+      box-shadow: 0 0 0 1px rgba(249,115,22,.10), 0 6px 28px rgba(249,115,22,.12);
+    }
+    .dark body[data-budget-level="warning"] #calorieHero { background-color: #2d211b; }
+    body[data-budget-level="danger"] #calorieHero {
+      background-color: #ffe0e0; border-color: #ff3030;
+      box-shadow: 0 0 0 1px rgba(255,48,48,.14), 0 6px 30px rgba(255,48,48,.20);
+    }
+    .dark body[data-budget-level="danger"] #calorieHero { background-color: #451a23; }
+
+    body[data-budget-level="warning"] #topNavBar { border-color: rgba(249,115,22,.50); }
+    body[data-budget-level="danger"] #topNavBar { border-color: rgba(255,48,48,.65); }
+    body[data-budget-level="warning"] #statEaten,
+    body[data-budget-level="warning"] #remainingLabel { color: #ea580c; }
+    body[data-budget-level="danger"] #statEaten,
+    body[data-budget-level="danger"] #remainingLabel { color: #ff3030; }
+    body[data-budget-level="warning"] #omniboxForm button[type="submit"],
+    body[data-budget-level="warning"] #splitInputForm button[data-type="food"] { background-color: #f97316; }
+    body[data-budget-level="danger"] #omniboxForm button[type="submit"],
+    body[data-budget-level="danger"] #splitInputForm button[data-type="food"] { background-color: #ef202f; }
+    body[data-budget-level="warning"] #toastBox { border-color: rgba(249,115,22,.60); }
+    body[data-budget-level="danger"] #toastBox { border-color: rgba(255,48,48,.60); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .toast-enter { animation: none; }
+      body, #calorieHero, #topNavBar, #statEaten, #toastBox { transition: none; }
     }
   </style>
 </head>
@@ -80,8 +120,8 @@
 <body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-24 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
 
   <!-- Toast Notification Banner -->
-  <div id="toastContainer" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none hidden">
-    <div id="toastBox" class="pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/30 bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md">
+  <div id="toastContainer" class="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none hidden" role="status" aria-live="polite">
+    <div id="toastBox" class="pointer-events-auto w-full max-w-sm flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/30 bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md">
       <div class="flex items-center gap-2.5 text-sm font-medium">
         <span id="toastIcon" class="text-lg">✅</span>
         <span id="toastMessage">Синхронизировано</span>
@@ -94,7 +134,7 @@
   <div class="max-w-md mx-auto px-3.5 pt-3 sm:pt-5 space-y-4">
 
     <!-- TOP NAVIGATION BAR -->
-    <header class="flex flex-wrap items-center justify-between gap-1 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
+    <header id="topNavBar" class="flex flex-wrap items-center justify-between gap-1 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
       <!-- Date Controls -->
       <div class="flex items-center gap-1">
         <button onclick="shiftDate(-1)" aria-label="Предыдущий день" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-600 dark:text-slate-300">
@@ -142,7 +182,7 @@
     </header>
 
     <!-- HERO CALORIE SUMMARY CARD -->
-    <section class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
+    <section id="calorieHero" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
       <div class="flex items-center justify-between gap-4">
         <!-- Left Circular Ring -->
         <div class="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
@@ -393,7 +433,7 @@
 
   </div>
 
-  <!-- Remote WebDAV: password remains in memory only -->
+  <!-- Remote WebDAV: credentials are saved on this device when connected -->
   <div id="remoteModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
     <div class="bg-white dark:bg-[#131b2e] w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
@@ -401,20 +441,21 @@
         <button onclick="closeModal('remoteModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">✕</button>
       </div>
       <div class="p-5 overflow-y-auto space-y-3 text-xs">
-        <p class="text-slate-500 dark:text-slate-400">Включи Tailscale на iPhone. Данные сначала сохраняются локально, затем отправляются на Raspberry Pi. Пароль не записывается в браузер и после перезапуска приложения потребуется снова.</p>
+        <p class="text-slate-500 dark:text-slate-400">Включи Tailscale на iPhone. Данные сохраняются локально и автоматически синхронизируются с Raspberry Pi при открытии, после изменений и примерно раз в минуту, пока приложение активно. Пароль сохраняется на этом устройстве в localStorage.</p>
         <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davUrlInput">URL JSON-файла</label>
         <input id="davUrlInput" type="url" spellcheck="false" autocorrect="off" autocomplete="off" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs" />
-        <p class="text-slate-400 text-[11px]">При общем каталоге WebDAV: <code>/kcal-lite/state.json</code>. Если отдельный пользователь привязан к каталогу kcal-lite: <code>/state.json</code>.</p>
+        <p class="text-slate-400 text-[11px]">Для пользователя <code>kcal</code> адрес <code>/state.json</code> соответствует файлу <code>/home/denis/data/webdav/kcal-lite/state.json</code> на Raspberry Pi.</p>
         <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davUsernameInput">WebDAV пользователь</label>
         <input id="davUsernameInput" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100" />
-        <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davPasswordInput">Пароль (не сохраняется)</label>
-        <input id="davPasswordInput" type="password" autocomplete="current-password" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100" />
+        <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davPasswordInput">Пароль WebDAV</label>
+        <input id="davPasswordInput" type="password" autocomplete="new-password" placeholder="Введи пароль или оставь пустым, если сохранён" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100" />
+        <p class="text-amber-500 text-[11px]">Пароль хранится в localStorage без шифрования. Используй отдельного WebDAV-пользователя только для kcal-lite. Кнопка «Отключить» удаляет сохранённый пароль.</p>
         <p id="remoteSyncStatus" class="text-slate-500 dark:text-slate-400 text-[11px] break-words" aria-live="polite">☁️ Не подключено</p>
         <div class="flex gap-2">
           <button id="davConnectButton" onclick="connectRemote()" class="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold">Подключить / Синхронизировать</button>
           <button onclick="disconnectRemote()" class="py-3 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold">Отключить</button>
         </div>
-        <p class="text-slate-400 text-[11px]">При первом запуске <code>state.json</code> может быть создан автоматически, если у пользователя есть право Create. Если появится ошибка CORS / Local Network Access, проверь разрешения браузера и включённый Tailscale.</p>
+        <p class="text-slate-400 text-[11px]">При первом запуске <code>state.json</code> может быть создан автоматически, если у пользователя есть право Create. Синхронизация работает, пока PWA открыто (в фоне iOS не гарантируется).</p>
       </div>
     </div>
   </div>
@@ -1161,6 +1202,11 @@
       const includeExercise = appState.settings.includeExerciseInBudget;
       const effectiveBudget = includeExercise ? baseGoal + totalBurned : baseGoal;
       const remaining = effectiveBudget - eatenKcal;
+      // Base the alert on the ACTUAL budget (including workouts when enabled).
+      // Exactly +10% is still orange; only >+10% is bright red.
+      const budgetLevel = remaining >= 0 ? 'normal'
+        : eatenKcal > effectiveBudget * 1.10 ? 'danger' : 'warning';
+      document.body.dataset.budgetLevel = budgetLevel;
 
       // Update numbers
       document.getElementById('statBaseGoal').textContent = baseGoal;
@@ -1185,16 +1231,17 @@
       const offset = circumference - ratio * circumference;
       circle.style.strokeDashoffset = offset.toFixed(2);
 
-      if (remaining >= 0) {
+      if (budgetLevel === 'normal') {
         remLabel.textContent = 'Осталось';
         remValue.textContent = remaining;
         remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white';
-        circle.style.stroke = ratio > 0.9 ? '#f59e0b' : '#10b981';
+        circle.style.stroke = '#10b981';
       } else {
-        remLabel.textContent = 'Перебор';
+        remLabel.textContent = budgetLevel === 'danger' ? 'Перебор >10%' : 'Перебор';
         remValue.textContent = `+${Math.abs(remaining)}`;
-        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-red-500';
-        circle.style.stroke = '#ef4444';
+        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight ' +
+          (budgetLevel === 'danger' ? 'text-red-500' : 'text-orange-500');
+        circle.style.stroke = budgetLevel === 'danger' ? '#ff3030' : '#f97316';
       }
 
       // Update current day's weight display
@@ -1810,13 +1857,13 @@
      ********************************************************************/
     const SYNC_STORAGE_KEY = 'kcal_lite_sync_v1';
     const DAV_SETTINGS_KEY = 'kcal_lite_dav_settings_v1';
-    const DEFAULT_DAV_URL = 'https://pica.tailda1815.ts.net:6065/kcal-lite/state.json';
+    const DEFAULT_DAV_URL = 'https://pica.tailda1815.ts.net:6065/state.json';
     const DAV_HOST = 'pica.tailda1815.ts.net:6065';
     const initialState = JSON.parse(JSON.stringify(appState));
     let lastSavedState = null;
     let pendingOps = [];
     let davUsername = '';
-    let davPassword = ''; // Intentionally memory-only, never put in persistent storage.
+    let davPassword = ''; // Saved in localStorage at the user's request; do not bundle credentials into public HTML.
     let davUrl = DEFAULT_DAV_URL;
     let syncBusy = false;
     let syncAgain = false;
@@ -1932,10 +1979,22 @@
       catch (err) { showToast('Ошибка локального хранения! Экспортируйте JSON.', '⚠️'); }
       try {
         const cfg = JSON.parse(localStorage.getItem(DAV_SETTINGS_KEY) || '{}');
-        davUrl = cfg.url || DEFAULT_DAV_URL;
         davUsername = cfg.username || 'kcal';
-      } catch (_) { davUsername = 'kcal'; }
-      setRemoteStatus('disconnected');
+        // The kcal user's WebDAV root already IS /home/denis/data/webdav/kcal-lite.
+        // Migrate the old, incorrect /kcal-lite/state.json default without touching data.
+        const storedUrl = cfg.url || DEFAULT_DAV_URL;
+        davUrl = storedUrl === 'https://pica.tailda1815.ts.net:6065/kcal-lite/state.json'
+          ? DEFAULT_DAV_URL : validDAVUrl(storedUrl);
+        davPassword = typeof cfg.password === 'string' ? cfg.password : '';
+        // Save the corrected URL for subsequent launches.
+        if (storedUrl !== davUrl) saveDavSettings();
+      } catch (err) {
+        console.warn('Не удалось прочитать настройки WebDAV:', err);
+        davUrl = DEFAULT_DAV_URL;
+        davUsername = 'kcal';
+        davPassword = '';
+      }
+      setRemoteStatus(davPassword ? 'pending' : 'disconnected');
     }
 
     function localSaveAndQueue() {
@@ -1970,10 +2029,17 @@
 
     function validDAVUrl(value) {
       const url = new URL(value);
-      if (url.protocol !== 'https:' || url.host !== DAV_HOST || url.username || url.password || url.search || url.hash || !['/state.json', '/kcal-lite/state.json'].includes(url.pathname)) {
+      if (url.protocol !== 'https:' || url.host !== DAV_HOST || url.username || url.password || url.search || url.hash || url.pathname !== '/state.json') {
         throw new Error('Укажите HTTPS URL state.json на pica.tailda1815.ts.net:6065');
       }
       return url.href;
+    }
+
+    function saveDavSettings() {
+      // Private per-origin browser storage, never written into GitHub Pages files.
+      localStorage.setItem(DAV_SETTINGS_KEY, JSON.stringify({
+        url: davUrl, username: davUsername, password: davPassword
+      }));
     }
 
     function authHeader() {
@@ -1983,7 +2049,7 @@
 
     async function davRequest(method, options = {}) {
       const headers = new Headers(options.headers || {});
-      headers.set('Authorization', authHeader());
+      headers.set('Authorization', options.auth || authHeader());
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 20000);
       try {
@@ -2005,10 +2071,12 @@
     }
 
     async function lockedMergeSync() {
+      // Use one auth snapshot for the whole transaction, even if the user disconnects mid-sync.
+      const transactionAuth = authHeader();
       const requestBody = '<?xml version="1.0" encoding="utf-8"?>' +
         '<d:lockinfo xmlns:d="DAV:"><d:lockscope><d:exclusive/></d:lockscope>' +
         '<d:locktype><d:write/></d:locktype><d:owner>kcal-lite</d:owner></d:lockinfo>';
-      const lock = await davRequest('LOCK', { headers: {
+      const lock = await davRequest('LOCK', { auth: transactionAuth, headers: {
         'Content-Type': 'application/xml; charset=utf-8', Depth: '0', Timeout: 'Second-60'
       }, body: requestBody });
       if (lock.status === 423) throw new Error('Файл заблокирован другим устройством. Повторите синхронизацию.');
@@ -2018,7 +2086,7 @@
 
       let commitSucceeded = false;
       try {
-        const response = await davRequest('GET');
+        const response = await davRequest('GET', { auth: transactionAuth });
         if (response.status !== 404 && !response.ok) throw new Error(`GET: HTTP ${response.status}`);
         const raw = response.status === 404 ? '' : await response.text();
         // A LOCK against a nonexistent file may create an empty lock-null resource.
@@ -2027,7 +2095,7 @@
         const merged = applyChanges(remoteState, sentOps);
         if (sentOps.length || !raw.trim()) {
           const saved = await davRequest('PUT', {
-            headers: { 'Content-Type': 'application/json; charset=utf-8', 'If': `(<${token}>)` },
+            auth: transactionAuth, headers: { 'Content-Type': 'application/json; charset=utf-8', 'If': `(<${token}>)` },
             body: JSON.stringify(merged)
           });
           if (!saved.ok) throw new Error(`PUT: HTTP ${saved.status}`);
@@ -2045,7 +2113,7 @@
         lastSyncTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
       } finally {
         try {
-          const unlocked = await davRequest('UNLOCK', { headers: { 'Lock-Token': `<${token}>` } });
+          const unlocked = await davRequest('UNLOCK', { auth: transactionAuth, headers: { 'Lock-Token': `<${token}>` } });
           if (!unlocked.ok) console.warn('UNLOCK HTTP', unlocked.status);
         } catch (err) { console.warn('UNLOCK failed; server lock expires after timeout:', err); }
       }
@@ -2053,20 +2121,22 @@
     }
 
     async function syncRemote() {
-      if (!davPassword || !davUsername) { setRemoteStatus('disconnected'); return; }
+      if (!davPassword || !davUsername) { setRemoteStatus('disconnected'); return false; }
       if (syncBusy) { syncAgain = true; return; }
-      if (!navigator.onLine) { setRemoteStatus('offline'); return; }
+      if (!navigator.onLine) { setRemoteStatus('offline'); return false; }
       syncBusy = true;
       syncAgain = false;
       setRemoteStatus('syncing');
       try {
         await lockedMergeSync();
         setRemoteStatus(pendingOps.length ? 'pending' : 'synced');
+        return true;
       } catch (err) {
         console.error('WebDAV sync:', err);
         const hint = err.name === 'AbortError' ? 'Таймаут. Проверь Tailscale.' :
           err instanceof TypeError ? 'Сетевая ошибка / CORS / Local Network Access / Tailscale' : err.message;
         setRemoteStatus('error', hint);
+        return false;
       } finally {
         syncBusy = false;
         if (syncAgain && davPassword) scheduleRemoteSync(250);
@@ -2076,13 +2146,13 @@
     function scheduleRemoteSync(delay = 900) {
       if (!davPassword) return;
       if (syncTimer) clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => { syncTimer = null; syncRemote(); }, delay);
+      syncTimer = setTimeout(() => { syncTimer = null; return syncRemote(); }, delay);
     }
 
     function openRemoteModal() {
       document.getElementById('davUrlInput').value = davUrl;
       document.getElementById('davUsernameInput').value = davUsername || 'kcal';
-      document.getElementById('davPasswordInput').value = '';
+      document.getElementById('davPasswordInput').value = ''; // Never display a saved password in the input.
       setRemoteStatus(davPassword ? 'idle' : 'disconnected');
       openModal('remoteModal');
     }
@@ -2096,7 +2166,7 @@
         if (passwordInput.value) davPassword = passwordInput.value;
         passwordInput.value = '';
         if (!davUsername || !davPassword) throw new Error('Укажите имя пользователя и пароль WebDAV');
-        localStorage.setItem(DAV_SETTINGS_KEY, JSON.stringify({url: davUrl, username: davUsername}));
+        saveDavSettings();
         connectButton.disabled = true;
         await syncRemote();
       } catch (err) { setRemoteStatus('error', err.message); }
@@ -2105,6 +2175,7 @@
 
     function disconnectRemote() {
       davPassword = '';
+      try { saveDavSettings(); } catch (err) { console.error('Cannot clear saved WebDAV password:', err); showToast('Не удалось удалить сохранённый пароль!', '⚠️'); }
       if (syncTimer) clearTimeout(syncTimer);
       syncTimer = null;
       document.getElementById('davPasswordInput').value = '';
@@ -2115,7 +2186,10 @@
       window.addEventListener('online', () => scheduleRemoteSync(200));
       document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRemoteSync(300); });
       window.addEventListener('focus', () => scheduleRemoteSync(500));
+      // iOS can suspend background tabs, so intervals only run while the page is active.
       setInterval(() => { if (!document.hidden) scheduleRemoteSync(500); }, 60000);
+      // If we have saved credentials, fetch remote changes immediately at startup.
+      scheduleRemoteSync(500);
     }
 
     // Initialize PWA & Resize Observer
