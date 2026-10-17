@@ -1,0 +1,15 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('index.html', 'utf8');
+const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(Boolean);
+for (const script of scripts) new vm.Script(script);
+const parser = html.slice(html.indexOf('    function parseWeightHistoryCsv'), html.indexOf('    async function importWeightHistoryFile'));
+const context = vm.createContext({getLocalDateString: () => '2026-10-17'});
+vm.runInContext(parser, context);
+const parse = text => JSON.parse(JSON.stringify(context.parseWeightHistoryCsv(text)));
+assert.deepEqual(parse('\uFEFFdate,kg\r\n2020-02-29,80.25\r\n2020-02-29,79.8\n2026-10-17,75\n'), {'2020-02-29':79.8,'2026-10-17':75});
+for (const invalid of ['', '2025-02-29,75', '2026-10-18,75', '2020-01-01,301', '2020-01-01,70,5', '2020-01-01,70 kg', '0000-01-01,70']) assert.throws(() => parse(invalid));
+const history = Array.from({length: 3650}, (_, i) => new Date(Date.UTC(2010,0,1+i)).toISOString().slice(0,10) + ',75.1').join('\n');
+assert.equal(Object.keys(parse(history)).length, 3650);
+console.log('PASS: inline JavaScript syntax, CSV validation, duplicate dates, 10-year history');

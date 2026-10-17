@@ -78,7 +78,7 @@
 
     /* The selected day's calorie budget determines the ambient app color.
        warning: >100% and <=110%; danger: >110% of effective daily budget. */
-    body, #calorieHero, #topNavBar, #statEaten, #toastBox {
+    body, #calorieHero, #topNavBar, #statEaten {
       transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
     }
     body[data-budget-level="warning"] { background-color: #fff4e8; }
@@ -112,26 +112,17 @@
 
     @media (prefers-reduced-motion: reduce) {
       .toast-enter { animation: none; }
-      body, #calorieHero, #topNavBar, #statEaten, #toastBox { transition: none; }
+      body, #calorieHero, #topNavBar, #statEaten { transition: none; }
     }
   </style>
 </head>
 
 <body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-24 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
 
-  <!-- Toast Notification Banner -->
-  <div id="toastContainer" class="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none hidden" role="status" aria-live="polite">
-    <div id="toastBox" class="pointer-events-auto w-full max-w-sm flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/30 bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md">
-      <div class="flex items-center gap-2.5 text-sm font-medium">
-        <span id="toastIcon" class="text-lg">✅</span>
-        <span id="toastMessage">Синхронизировано</span>
-      </div>
-      <button onclick="hideToast()" class="text-slate-400 hover:text-white p-1 rounded-lg text-xs">✕</button>
-    </div>
-  </div>
-
   <!-- Main App Wrapper (Mobile-first max-w-md centered) -->
   <div class="max-w-md mx-auto px-3.5 pt-3 sm:pt-5 space-y-4">
+
+    <p id="actionStatus" role="status" aria-live="polite" class="text-xs text-slate-500 dark:text-slate-400 empty:hidden"></p>
 
     <!-- TOP NAVIGATION BAR -->
     <header id="topNavBar" class="flex flex-wrap items-center justify-between gap-1 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
@@ -371,6 +362,7 @@
           <button onclick="setWeightChartRange(14)" id="rangeBtn14" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition">14д</button>
           <button onclick="setWeightChartRange(30)" id="rangeBtn30" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">30д</button>
           <button onclick="setWeightChartRange(90)" id="rangeBtn90" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">90д</button>
+          <button onclick="setWeightChartRange(0)" id="rangeBtn0" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">All</button>
         </div>
       </div>
 
@@ -407,6 +399,13 @@
           Сохранить вес
         </button>
       </form>
+
+      <details class="text-xs text-slate-500 dark:text-slate-400">
+        <summary class="cursor-pointer py-2">Import weight history from Apple Health</summary>
+        <p class="my-2">Import a CSV file with one measurement per line: YYYY-MM-DD,kg. Export oldest first; the last measurement for each day wins. Existing dates are updated; other data is kept.</p>
+        <input type="file" accept=".csv,.txt,text/csv,text/plain" onchange="importWeightHistoryFile(event)" aria-label="Import weight history CSV" class="block w-full text-xs my-2" />
+        <p id="weightImportStatus" role="status" aria-live="polite"></p>
+      </details>
 
       <!-- Interactive Canvas Chart Wrapper -->
       <div class="relative w-full h-52 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-2">
@@ -1085,6 +1084,48 @@
       showToast('Синхронизированная активность сброшена', '🗑️');
     }
 
+    function parseWeightHistoryCsv(text) {
+      const weights = {};
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || /^date,kg$/i.test(line)) continue;
+        const match = /^(\d{4}-\d{2}-\d{2}),([0-9]+(?:\.[0-9]+)?)$/.exec(line);
+        if (!match) throw new Error(`Line ${i + 1}: expected YYYY-MM-DD,kg (decimal point, no units).`);
+        const date = match[1];
+        const parsedDate = new Date(date + 'T12:00:00Z');
+        const weight = Number(match[2]);
+        if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date || date < '1900-01-01' || date > getLocalDateString()) {
+          throw new Error(`Line ${i + 1}: invalid or future date.`);
+        }
+        if (!Number.isFinite(weight) || weight < 25 || weight > 300) {
+          throw new Error(`Line ${i + 1}: weight must be between 25 and 300 kg.`);
+        }
+        weights[date] = Math.round(weight * 10) / 10;
+      }
+      if (!Object.keys(weights).length) throw new Error('No weight measurements found.');
+      return weights;
+    }
+
+    async function importWeightHistoryFile(event) {
+      const input = event.target;
+      const file = input.files[0];
+      if (!file) return;
+      const status = document.getElementById('weightImportStatus');
+      try {
+        const weights = parseWeightHistoryCsv(await file.text());
+        Object.assign(appState.weights, weights);
+        saveState();
+        renderAll();
+        setWeightChartRange(0);
+        status.textContent = `Imported ${Object.keys(weights).length} days. Weight history merged.`;
+      } catch (error) {
+        status.textContent = `Import failed: ${error.message}`;
+      } finally {
+        input.value = '';
+      }
+    }
+
     function logWeightForDate(dateStr, weightVal) {
       const w = Math.round(parseFloat(weightVal) * 10) / 10;
       if (isNaN(w) || w < 25 || w > 300) return;
@@ -1404,7 +1445,7 @@
 
     function setWeightChartRange(days) {
       weightChartDaysRange = days;
-      [14, 30, 90].forEach(d => {
+      [14, 30, 90, 0].forEach(d => {
         const btn = document.getElementById(`rangeBtn${d}`);
         if (d === days) {
           btn.className = 'px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition';
@@ -1457,7 +1498,7 @@
         emptyOverlay.classList.add('hidden');
       }
 
-      const sliced = fullSeries.slice(-weightChartDaysRange);
+      const sliced = weightChartDaysRange === 0 ? fullSeries : fullSeries.slice(-weightChartDaysRange);
       drawWeightCanvas(sliced);
     }
 
@@ -1805,24 +1846,8 @@
       renderWeightSection();
     }
 
-    let toastTimer = null;
-    function showToast(message, icon = '✅') {
-      const container = document.getElementById('toastContainer');
-      const box = document.getElementById('toastBox');
-      document.getElementById('toastMessage').textContent = message;
-      document.getElementById('toastIcon').textContent = icon;
-
-      container.classList.remove('hidden');
-      box.classList.remove('toast-enter');
-      void box.offsetWidth; // reflow
-      box.classList.add('toast-enter');
-
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(hideToast, 3600);
-    }
-
-    function hideToast() {
-      document.getElementById('toastContainer').classList.add('hidden');
+    function showToast(message) {
+      document.getElementById('actionStatus').textContent = message;
     }
 
     function escapeHtml(str) {

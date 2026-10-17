@@ -1,5 +1,5 @@
 /* Offline app shell. NEVER cache authenticated WebDAV responses. */
-const CACHE_NAME = 'kcal-lite-shell-2026-10-17-v3';
+const CACHE_NAME = 'kcal-lite-shell-2026-10-17-v4';
 const APP_SHELL = ['./', './index.html', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(async cache => {
