@@ -1,0 +1,12 @@
+{
+  "id": "./",
+  "name": "Kcal Lite — калории и вес",
+  "short_name": "Kcal Lite",
+  "description": "Офлайн-дневник калорий и веса с WebDAV-синхронизацией",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#090d16"
+}
