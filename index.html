@@ -194,7 +194,7 @@
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Баланс дня</span>
             <button onclick="toggleExerciseBudgetMode()" id="budgetModeBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
-              + Спорт в бюджет
+              + 80% Health
             </button>
           </div>
 
@@ -211,10 +211,10 @@
               <div id="statEaten" class="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
             </div>
 
-            <!-- Burned (Garmin / Health + Workouts) -->
+            <!-- Calorie budget bonus -->
             <div onclick="openModal('syncModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-orange-500/40 transition">
               <div class="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
-                <span>Актив.</span>
+                <span>Bonus</span>
                 <span class="text-[9px]">🔥</span>
               </div>
               <div id="statBurned" class="text-sm font-bold font-mono text-orange-500 mt-0.5">0</div>
@@ -528,7 +528,7 @@
         <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
           <div class="pr-3">
             <div class="font-bold text-slate-800 dark:text-slate-100">Добавлять калории тренировок к остатку</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Если включено: Остаток = Норма + Активность − Съедено. Если выключено: активность считается отдельно.</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Bonus = 0.8 * Active Energy + manual workouts. Rounded to whole kcal. Disabled: no bonus.</div>
           </div>
           <input type="checkbox" id="settingsExerciseToggle" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer" />
         </div>
@@ -1194,10 +1194,11 @@
       }
 
       const syncedBurned = Number(dayRec.healthSyncKcal) || 0;
-      const totalBurned = manualWorkoutKcal + syncedBurned;
+      const healthBonus = Math.round(syncedBurned * 0.8);
+      const exerciseBonus = manualWorkoutKcal + healthBonus;
 
       const includeExercise = appState.settings.includeExerciseInBudget;
-      const effectiveBudget = includeExercise ? baseGoal + totalBurned : baseGoal;
+      const effectiveBudget = includeExercise ? baseGoal + exerciseBonus : baseGoal;
       const remaining = effectiveBudget - eatenKcal;
       // Base the alert on the ACTUAL budget (including workouts when enabled).
       // Exactly +10% is still orange; only >+10% is bright red.
@@ -1208,11 +1209,12 @@
       // Update numbers
       document.getElementById('statBaseGoal').textContent = baseGoal;
       document.getElementById('statEaten').textContent = eatenKcal;
-      document.getElementById('statBurned').textContent = totalBurned;
+      document.getElementById('statBurned').textContent = includeExercise ? exerciseBonus : 0;
+      document.getElementById('statBurned').title = `Active Energy: ${syncedBurned} kcal; 80%: ${healthBonus} kcal; manual workouts: ${manualWorkoutKcal} kcal`;
 
       const badge = document.getElementById('budgetModeBadge');
       if (includeExercise) {
-        badge.textContent = '+ Спорт в бюджет';
+        badge.textContent = '+ 80% Health';
         badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition';
       } else {
         badge.textContent = 'Без учёта спорта';
