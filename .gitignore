@@ -1,0 +1,37 @@
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Cursor local state (keep shared rules if you add them later)
+.cursor/*
+!.cursor/rules/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+npm-debug.log*
+.cache/
+
+# If you add a bundler later
+node_modules/
+dist/
+build/
+.parcel-cache/
+.vite/

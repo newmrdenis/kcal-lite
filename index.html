@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Kcal Lite" />
   <meta name="theme-color" content="#090d16" />
   <title>Kcal Lite — Быстрый трекер калорий и веса</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -93,7 +94,7 @@
   <div class="max-w-md mx-auto px-3.5 pt-3 sm:pt-5 space-y-4">
 
     <!-- TOP NAVIGATION BAR -->
-    <header class="flex items-center justify-between gap-2 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
+    <header class="flex flex-wrap items-center justify-between gap-1 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
       <!-- Date Controls -->
       <div class="flex items-center gap-1">
         <button onclick="shiftDate(-1)" aria-label="Предыдущий день" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-600 dark:text-slate-300">
@@ -120,6 +121,8 @@
 
       <!-- Right Action Buttons: Health Sync, Theme, Settings -->
       <div class="flex items-center gap-1.5">
+        <button id="remoteSyncBadge" onclick="openRemoteModal()" class="px-2 py-1.5 rounded-xl text-[10px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/25 transition" title="Настроить удалённое хранилище WebDAV">☁️ Не подключено</button>
+
         <button onclick="openModal('syncModal')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 active:scale-95 transition" title="Синхронизация с Apple Health и Garmin">
           <span>🔄</span>
           <span>Health</span>
@@ -390,6 +393,32 @@
 
   </div>
 
+  <!-- Remote WebDAV: password remains in memory only -->
+  <div id="remoteModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-[#131b2e] w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <h3 class="font-bold text-sm text-slate-900 dark:text-white">☁️ Синхронизация через WebDAV</h3>
+        <button onclick="closeModal('remoteModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-3 text-xs">
+        <p class="text-slate-500 dark:text-slate-400">Включи Tailscale на iPhone. Данные сначала сохраняются локально, затем отправляются на Raspberry Pi. Пароль не записывается в браузер и после перезапуска приложения потребуется снова.</p>
+        <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davUrlInput">URL JSON-файла</label>
+        <input id="davUrlInput" type="url" spellcheck="false" autocorrect="off" autocomplete="off" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs" />
+        <p class="text-slate-400 text-[11px]">При общем каталоге WebDAV: <code>/kcal-lite/state.json</code>. Если отдельный пользователь привязан к каталогу kcal-lite: <code>/state.json</code>.</p>
+        <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davUsernameInput">WebDAV пользователь</label>
+        <input id="davUsernameInput" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100" />
+        <label class="block font-semibold text-slate-700 dark:text-slate-200" for="davPasswordInput">Пароль (не сохраняется)</label>
+        <input id="davPasswordInput" type="password" autocomplete="current-password" class="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100" />
+        <p id="remoteSyncStatus" class="text-slate-500 dark:text-slate-400 text-[11px] break-words" aria-live="polite">☁️ Не подключено</p>
+        <div class="flex gap-2">
+          <button id="davConnectButton" onclick="connectRemote()" class="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold">Подключить / Синхронизировать</button>
+          <button onclick="disconnectRemote()" class="py-3 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold">Отключить</button>
+        </div>
+        <p class="text-slate-400 text-[11px]">При первом запуске <code>state.json</code> может быть создан автоматически, если у пользователя есть право Create. Если появится ошибка CORS / Local Network Access, проверь разрешения браузера и включённый Tailscale.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- ========================================== -->
   <!-- MODAL 1: APPLE HEALTH & GARMIN SYNC BRIDGE -->
   <!-- ========================================== -->
@@ -519,7 +548,7 @@
         <!-- Backup & Restore Section -->
         <div class="space-y-2.5">
           <div class="font-bold text-slate-800 dark:text-slate-100">Локальная база данных (JSON Бэкап)</div>
-          <p class="text-[11px] text-slate-400">Все данные хранятся на вашем устройстве в <code class="font-mono">localStorage</code>. Вы можете в любой момент экспортировать или импортировать их:</p>
+          <p class="text-[11px] text-slate-400">Данные сохраняются в <code class="font-mono">localStorage</code>, а при подключении к WebDAV синхронизируются с Raspberry Pi. Экспорт JSON остаётся полезным для резервной копии.</p>
 
           <div class="grid grid-cols-2 gap-2">
             <button onclick="exportDataJson()" class="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 font-semibold text-slate-800 dark:text-slate-200 transition">
@@ -537,11 +566,12 @@
         </div>
 
         <hr class="border-slate-200 dark:border-slate-800" />
+        <p class="text-[11px] text-red-500">Внимание: очистка создаст операции удаления, которые будут отправлены на WebDAV и затем применятся на других устройствах.</p>
 
         <!-- Danger Zone: Reset with inline two-step confirmation -->
         <div class="space-y-2">
           <button id="resetDataBtn" onclick="requestResetData()" class="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/25 font-semibold text-xs transition">
-            🗑️ Очистить все данные приложения
+            🗑️ Очистить данные на всех синхронизируемых устройствах
           </button>
         </div>
       </div>
@@ -666,11 +696,7 @@
     }
 
     function saveState() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-      } catch (err) {
-        console.error('Ошибка записи в localStorage:', err);
-      }
+      localSaveAndQueue();
     }
 
     function ensureDayRecord(dateStr) {
@@ -1539,7 +1565,7 @@
         document.getElementById('settingsShortcutInput').value = appState.settings.shortcutName || 'HealthSync';
         resetConfirmPending = false;
         const resetBtn = document.getElementById('resetDataBtn');
-        resetBtn.textContent = '🗑️ Очистить все данные приложения';
+        resetBtn.textContent = '🗑️ Очистить данные на всех синхронизируемых устройствах';
       } else if (modalId === 'syncModal') {
         document.getElementById('shortcutNamePreview').textContent = appState.settings.shortcutName || 'HealthSync';
         const baseUrl = window.location.origin + window.location.pathname;
@@ -1695,12 +1721,11 @@
       const btn = document.getElementById('resetDataBtn');
       if (!resetConfirmPending) {
         resetConfirmPending = true;
-        btn.textContent = '⚠️ Нажмите ещё раз для полного удаления всех данных';
+        btn.textContent = '⚠️ Повторное нажатие удалит также удалённые данные';
         btn.className = 'w-full py-2.5 rounded-xl bg-red-600 text-white font-bold text-xs transition';
         return;
       }
 
-      localStorage.removeItem(STORAGE_KEY);
       appState.days = {};
       appState.weights = {};
       appState.presets = [...DEFAULT_PRESETS];
@@ -1778,6 +1803,321 @@
       renderWeightSection();
     }
 
+    /********************************************************************
+     * 10. OFFLINE-FIRST WEBDAV SYNC (private tailnet endpoint)
+     * Every local mutation is persisted as a replayable operation. A LOCK
+     * serializes read/merge/write cycles across cooperating devices.
+     ********************************************************************/
+    const SYNC_STORAGE_KEY = 'kcal_lite_sync_v1';
+    const DAV_SETTINGS_KEY = 'kcal_lite_dav_settings_v1';
+    const DEFAULT_DAV_URL = 'https://pica.tailda1815.ts.net:6065/kcal-lite/state.json';
+    const DAV_HOST = 'pica.tailda1815.ts.net:6065';
+    const initialState = JSON.parse(JSON.stringify(appState));
+    let lastSavedState = null;
+    let pendingOps = [];
+    let davUsername = '';
+    let davPassword = ''; // Intentionally memory-only, never put in persistent storage.
+    let davUrl = DEFAULT_DAV_URL;
+    let syncBusy = false;
+    let syncAgain = false;
+    let syncTimer = null;
+    let lastSyncTime = '';
+
+    const copyData = value => JSON.parse(JSON.stringify(value));
+    const sameData = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+
+    function cleanState(value) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Недопустимый JSON: ожидался объект состояния');
+      if (value.days != null && (typeof value.days !== 'object' || Array.isArray(value.days))) throw new Error('Недопустимые days в state.json');
+      if (value.weights != null && (typeof value.weights !== 'object' || Array.isArray(value.weights))) throw new Error('Недопустимые weights в state.json');
+      if (value.presets != null && !Array.isArray(value.presets)) throw new Error('Недопустимые presets в state.json');
+      const merged = {
+        settings: { ...initialState.settings, ...(value.settings || {}) },
+        presets: value.presets === undefined ? copyData(DEFAULT_PRESETS) : copyData(value.presets),
+        days: copyData(value.days || {}),
+        weights: copyData(value.weights || {})
+      };
+      for (const day of Object.values(merged.days)) {
+        if (!day || !Array.isArray(day.entries)) throw new Error('Недопустимый список записей в state.json');
+      }
+      return merged;
+    }
+
+    function stateChanges(before, after) {
+      // Granular changes prevent two independent edits from replacing a whole day.
+      const changes = [];
+      const push = (type, key, value, date) => changes.push({
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `op_${Date.now()}_${Math.random()}`),
+        type, key, ...(date ? { date } : {}), ...(value !== undefined ? { value: copyData(value) } : {})
+      });
+      for (const key of new Set([...Object.keys(before.settings || {}), ...Object.keys(after.settings || {})])) {
+        if (!sameData(before.settings[key], after.settings[key])) push('setting', key, after.settings[key] ?? null);
+      }
+      const oldPresets = Object.fromEntries((before.presets || []).map(p => [p.id, p]));
+      const newPresets = Object.fromEntries((after.presets || []).map(p => [p.id, p]));
+      for (const id of new Set([...Object.keys(oldPresets), ...Object.keys(newPresets)])) {
+        if (!own(newPresets, id)) push('preset-delete', id);
+        else if (!sameData(oldPresets[id], newPresets[id])) push('preset-upsert', id, newPresets[id]);
+      }
+      for (const date of new Set([...Object.keys(before.days || {}), ...Object.keys(after.days || {})])) {
+        const b = before.days?.[date] || {};
+        const a = after.days?.[date] || {};
+        const oldEntries = Object.fromEntries((b.entries || []).map(e => [e.id, e]));
+        const newEntries = Object.fromEntries((a.entries || []).map(e => [e.id, e]));
+        for (const id of new Set([...Object.keys(oldEntries), ...Object.keys(newEntries)])) {
+          if (!own(newEntries, id)) push('entry-delete', id, undefined, date);
+          else if (!sameData(oldEntries[id], newEntries[id])) push('entry-upsert', id, newEntries[id], date);
+        }
+        const oldHealth = { kcal: b.healthSyncKcal || 0, time: b.healthSyncTime || null };
+        const newHealth = { kcal: a.healthSyncKcal || 0, time: a.healthSyncTime || null };
+        if (!sameData(oldHealth, newHealth)) push('health', date, newHealth);
+      }
+      for (const date of new Set([...Object.keys(before.weights || {}), ...Object.keys(after.weights || {})])) {
+        if (!own(after.weights, date)) push('weight-delete', date);
+        else if (!sameData(before.weights[date], after.weights[date])) push('weight-upsert', date, after.weights[date]);
+      }
+      return changes;
+    }
+
+    function applyChanges(source, changes) {
+      const state = cleanState(source);
+      for (const op of changes) {
+        if (!op || !op.type || !op.key) continue;
+        if (op.type === 'setting') state.settings[op.key] = copyData(op.value);
+        if (op.type === 'preset-delete') state.presets = state.presets.filter(p => p.id !== op.key);
+        if (op.type === 'preset-upsert') {
+          const index = state.presets.findIndex(p => p.id === op.key);
+          if (index < 0) state.presets.push(copyData(op.value));
+          else state.presets[index] = copyData(op.value);
+        }
+        if (op.type === 'entry-delete' || op.type === 'entry-upsert' || op.type === 'health') {
+          const day = state.days[op.date || op.key] ||= { entries: [], healthSyncKcal: 0, healthSyncTime: null };
+          if (op.type === 'entry-delete') day.entries = day.entries.filter(e => e.id !== op.key);
+          if (op.type === 'entry-upsert') {
+            const index = day.entries.findIndex(e => e.id === op.key);
+            if (index < 0) day.entries.unshift(copyData(op.value));
+            else day.entries[index] = copyData(op.value);
+          }
+          if (op.type === 'health') {
+            day.healthSyncKcal = op.value.kcal;
+            day.healthSyncTime = op.value.time;
+          }
+        }
+        if (op.type === 'weight-delete') delete state.weights[op.key];
+        if (op.type === 'weight-upsert') state.weights[op.key] = op.value;
+      }
+      return state;
+    }
+
+    function persistOps() {
+      // Persist operations before the updated state so a crash never drops an edit.
+      localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify({ migrated: true, pendingOps }));
+    }
+
+    function restoreSync() {
+      let record = null;
+      try { record = JSON.parse(localStorage.getItem(SYNC_STORAGE_KEY) || 'null'); }
+      catch (err) { console.warn('Поврежден журнал синхронизации:', err); }
+      pendingOps = Array.isArray(record?.pendingOps) ? record.pendingOps : [];
+      if (!record?.migrated) {
+        // Import pre-sync local data (including custom presets/settings) exactly once.
+        pendingOps = [...stateChanges(initialState, appState), ...pendingOps];
+      }
+      try { persistOps(); }
+      catch (err) { console.error('Не удалось записать очередь синхронизации:', err); showToast('Не удалось сохранить очередь синхронизации!', '⚠️'); }
+      appState = applyChanges(appState, pendingOps);
+      lastSavedState = copyData(appState);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); }
+      catch (err) { showToast('Ошибка локального хранения! Экспортируйте JSON.', '⚠️'); }
+      try {
+        const cfg = JSON.parse(localStorage.getItem(DAV_SETTINGS_KEY) || '{}');
+        davUrl = cfg.url || DEFAULT_DAV_URL;
+        davUsername = cfg.username || 'kcal';
+      } catch (_) { davUsername = 'kcal'; }
+      setRemoteStatus('disconnected');
+    }
+
+    function localSaveAndQueue() {
+      const ops = stateChanges(lastSavedState || initialState, appState);
+      try {
+        if (ops.length) {
+          pendingOps.push(...ops);
+          persistOps();
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        lastSavedState = copyData(appState);
+        if (ops.length) scheduleRemoteSync();
+        setRemoteStatus(davPassword ? (ops.length ? 'pending' : 'idle') : 'disconnected');
+      } catch (err) {
+        console.error('Local save failed:', err);
+        showToast('Не удалось сохранить данные! Экспортируйте JSON.', '⚠️');
+      }
+    }
+
+    function setRemoteStatus(state, details = '') {
+      const el = document.getElementById('remoteSyncBadge');
+      const status = document.getElementById('remoteSyncStatus');
+      const label = {
+        disconnected: '☁️ Не подключено', pending: '☁️ Ожидает отправки',
+        syncing: '🔄 Синхронизация', synced: '✅ Синхронизировано',
+        idle: pendingOps.length ? '☁️ Ожидает отправки' : '✅ Синхронизировано',
+        offline: '📴 Офлайн', error: '⚠️ Ошибка WebDAV'
+      }[state] || '☁️ WebDAV';
+      if (el) { el.textContent = label; el.title = details || `В очереди: ${pendingOps.length}`; }
+      if (status) status.textContent = `${label} · В очереди: ${pendingOps.length}` + (details ? ` · ${details}` : '') + (lastSyncTime ? ` · Последняя: ${lastSyncTime}` : '');
+    }
+
+    function validDAVUrl(value) {
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.host !== DAV_HOST || url.username || url.password || url.search || url.hash || !['/state.json', '/kcal-lite/state.json'].includes(url.pathname)) {
+        throw new Error('Укажите HTTPS URL state.json на pica.tailda1815.ts.net:6065');
+      }
+      return url.href;
+    }
+
+    function authHeader() {
+      const bytes = new TextEncoder().encode(`${davUsername}:${davPassword}`);
+      return 'Basic ' + btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''));
+    }
+
+    async function davRequest(method, options = {}) {
+      const headers = new Headers(options.headers || {});
+      headers.set('Authorization', authHeader());
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
+      try {
+        const response = await fetch(davUrl, {
+          method, headers, body: options.body, cache: 'no-store',
+          credentials: 'omit', signal: controller.signal
+        });
+        if (response.status === 401 || response.status === 403) throw new Error(`HTTP ${response.status}: проверь логин, пароль и разрешения WebDAV`);
+        return response;
+      } finally { clearTimeout(timer); }
+    }
+
+    function lockTokenFrom(response, xml) {
+      const raw = response.headers.get('Lock-Token');
+      if (raw) return raw.trim().replace(/^<|>$/g, '');
+      const documentXml = new DOMParser().parseFromString(xml, 'application/xml');
+      const href = [...documentXml.getElementsByTagName('*')].find(e => e.localName === 'href' && e.parentElement?.localName === 'locktoken');
+      return href?.textContent?.trim() || '';
+    }
+
+    async function lockedMergeSync() {
+      const requestBody = '<?xml version="1.0" encoding="utf-8"?>' +
+        '<d:lockinfo xmlns:d="DAV:"><d:lockscope><d:exclusive/></d:lockscope>' +
+        '<d:locktype><d:write/></d:locktype><d:owner>kcal-lite</d:owner></d:lockinfo>';
+      const lock = await davRequest('LOCK', { headers: {
+        'Content-Type': 'application/xml; charset=utf-8', Depth: '0', Timeout: 'Second-60'
+      }, body: requestBody });
+      if (lock.status === 423) throw new Error('Файл заблокирован другим устройством. Повторите синхронизацию.');
+      if (!lock.ok) throw new Error(`LOCK: HTTP ${lock.status}`);
+      const token = lockTokenFrom(lock, await lock.text());
+      if (!token) throw new Error('WebDAV не вернул Lock-Token');
+
+      let commitSucceeded = false;
+      try {
+        const response = await davRequest('GET');
+        if (response.status !== 404 && !response.ok) throw new Error(`GET: HTTP ${response.status}`);
+        const raw = response.status === 404 ? '' : await response.text();
+        // A LOCK against a nonexistent file may create an empty lock-null resource.
+        const remoteState = raw.trim() ? cleanState(JSON.parse(raw)) : cleanState(initialState);
+        const sentOps = pendingOps.slice();
+        const merged = applyChanges(remoteState, sentOps);
+        if (sentOps.length || !raw.trim()) {
+          const saved = await davRequest('PUT', {
+            headers: { 'Content-Type': 'application/json; charset=utf-8', 'If': `(<${token}>)` },
+            body: JSON.stringify(merged)
+          });
+          if (!saved.ok) throw new Error(`PUT: HTTP ${saved.status}`);
+        }
+        commitSucceeded = true;
+        const appliedIds = new Set(sentOps.map(op => op.id));
+        pendingOps = pendingOps.filter(op => !appliedIds.has(op.id));
+        // Keep edits performed while network requests were in flight.
+        appState = applyChanges(merged, pendingOps);
+        // Save app state first: if interrupted, replaying old operations is idempotent.
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        persistOps();
+        lastSavedState = copyData(appState);
+        renderAll();
+        lastSyncTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      } finally {
+        try {
+          const unlocked = await davRequest('UNLOCK', { headers: { 'Lock-Token': `<${token}>` } });
+          if (!unlocked.ok) console.warn('UNLOCK HTTP', unlocked.status);
+        } catch (err) { console.warn('UNLOCK failed; server lock expires after timeout:', err); }
+      }
+      return commitSucceeded;
+    }
+
+    async function syncRemote() {
+      if (!davPassword || !davUsername) { setRemoteStatus('disconnected'); return; }
+      if (syncBusy) { syncAgain = true; return; }
+      if (!navigator.onLine) { setRemoteStatus('offline'); return; }
+      syncBusy = true;
+      syncAgain = false;
+      setRemoteStatus('syncing');
+      try {
+        await lockedMergeSync();
+        setRemoteStatus(pendingOps.length ? 'pending' : 'synced');
+      } catch (err) {
+        console.error('WebDAV sync:', err);
+        const hint = err.name === 'AbortError' ? 'Таймаут. Проверь Tailscale.' :
+          err instanceof TypeError ? 'Сетевая ошибка / CORS / Local Network Access / Tailscale' : err.message;
+        setRemoteStatus('error', hint);
+      } finally {
+        syncBusy = false;
+        if (syncAgain && davPassword) scheduleRemoteSync(250);
+      }
+    }
+
+    function scheduleRemoteSync(delay = 900) {
+      if (!davPassword) return;
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => { syncTimer = null; syncRemote(); }, delay);
+    }
+
+    function openRemoteModal() {
+      document.getElementById('davUrlInput').value = davUrl;
+      document.getElementById('davUsernameInput').value = davUsername || 'kcal';
+      document.getElementById('davPasswordInput').value = '';
+      setRemoteStatus(davPassword ? 'idle' : 'disconnected');
+      openModal('remoteModal');
+    }
+
+    async function connectRemote() {
+      const connectButton = document.getElementById('davConnectButton');
+      try {
+        davUrl = validDAVUrl(document.getElementById('davUrlInput').value.trim());
+        davUsername = document.getElementById('davUsernameInput').value.trim();
+        const passwordInput = document.getElementById('davPasswordInput');
+        if (passwordInput.value) davPassword = passwordInput.value;
+        passwordInput.value = '';
+        if (!davUsername || !davPassword) throw new Error('Укажите имя пользователя и пароль WebDAV');
+        localStorage.setItem(DAV_SETTINGS_KEY, JSON.stringify({url: davUrl, username: davUsername}));
+        connectButton.disabled = true;
+        await syncRemote();
+      } catch (err) { setRemoteStatus('error', err.message); }
+      finally { connectButton.disabled = false; }
+    }
+
+    function disconnectRemote() {
+      davPassword = '';
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = null;
+      document.getElementById('davPasswordInput').value = '';
+      setRemoteStatus('disconnected');
+    }
+
+    function startRemoteEventHooks() {
+      window.addEventListener('online', () => scheduleRemoteSync(200));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRemoteSync(300); });
+      window.addEventListener('focus', () => scheduleRemoteSync(500));
+      setInterval(() => { if (!document.hidden) scheduleRemoteSync(500); }, 60000);
+    }
+
     // Initialize PWA & Resize Observer
     window.addEventListener('resize', () => {
       renderWeightSection();
@@ -1785,9 +2125,14 @@
 
     window.onload = function() {
       loadState();
+      restoreSync();
       renderAll();
       // Check if opened via Apple Shortcuts URL Bridge (?weight=...&active_kcal=...)
       processUrlQueryParameters(window.location.search);
+      startRemoteEventHooks();
+      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service Worker:', err));
+      }
     };
   </script>
 </body>
