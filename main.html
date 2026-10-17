@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kcal Lite" />
+  <meta name="theme-color" content="#090d16" />
+  <title>Kcal Lite — Быстрый трекер калорий и веса</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
+          },
+          colors: {
+            ios: {
+              bg: '#090d16',
+              card: '#131b2e',
+              cardLight: '#ffffff',
+              border: '#1e293b',
+              accent: '#10b981',
+              orange: '#f97316',
+              blue: '#3b82f6',
+              danger: '#ef4444'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <!-- Dynamic Apple Touch Icon & Manifest via inline script -->
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overscroll-behavior-y: none;
+    }
+    /* Hide scrollbars for horizontal chip bar */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Smooth progress ring animation */
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.45s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.3s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translate(-50%, -16px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    .toast-enter {
+      animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-24 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
+
+  <!-- Toast Notification Banner -->
+  <div id="toastContainer" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md pointer-events-none hidden">
+    <div id="toastBox" class="pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-emerald-500/30 bg-slate-900/95 dark:bg-slate-800/95 text-white backdrop-blur-md">
+      <div class="flex items-center gap-2.5 text-sm font-medium">
+        <span id="toastIcon" class="text-lg">✅</span>
+        <span id="toastMessage">Синхронизировано</span>
+      </div>
+      <button onclick="hideToast()" class="text-slate-400 hover:text-white p-1 rounded-lg text-xs">✕</button>
+    </div>
+  </div>
+
+  <!-- Main App Wrapper (Mobile-first max-w-md centered) -->
+  <div class="max-w-md mx-auto px-3.5 pt-3 sm:pt-5 space-y-4">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="flex items-center justify-between gap-2 bg-white/80 dark:bg-[#131b2e]/85 backdrop-blur-md px-3 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
+      <!-- Date Controls -->
+      <div class="flex items-center gap-1">
+        <button onclick="shiftDate(-1)" aria-label="Предыдущий день" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-600 dark:text-slate-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+
+        <div class="relative flex items-center">
+          <input type="date" id="datePickerInput" onchange="onDatePickerChange(this.value)" class="sr-only" />
+          <button onclick="document.getElementById('datePickerInput').showPicker ? document.getElementById('datePickerInput').showPicker() : document.getElementById('datePickerInput').click()" class="px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 text-left">
+            <div>
+              <div id="dateTitleText" class="text-sm font-bold leading-tight text-slate-900 dark:text-white">Сегодня</div>
+              <div id="dateSubText" class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Суббота</div>
+            </div>
+          </button>
+          <button id=" jumpTodayBtn" onclick="jumpToToday()" class="hidden ml-1 px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/25 transition">
+            Сегодня
+          </button>
+        </div>
+
+        <button onclick="shiftDate(1)" aria-label="Следующий день" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition text-slate-600 dark:text-slate-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- Right Action Buttons: Health Sync, Theme, Settings -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="openModal('syncModal')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 active:scale-95 transition" title="Синхронизация с Apple Health и Garmin">
+          <span>🔄</span>
+          <span>Health</span>
+        </button>
+
+        <button onclick="toggleTheme()" aria-label="Тема" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition">
+          <span id="themeIcon" class="text-sm">🌙</span>
+        </button>
+
+        <button onclick="openModal('settingsModal')" aria-label="Настройки" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- HERO CALORIE SUMMARY CARD -->
+    <section class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm">
+      <div class="flex items-center justify-between gap-4">
+        <!-- Left Circular Ring -->
+        <div class="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
+          <svg class="w-32 h-32" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="transparent" stroke="currentColor" stroke-width="10" class="text-slate-100 dark:text-slate-800" />
+            <circle id="calorieRingCircle" cx="60" cy="60" r="50" fill="transparent" stroke="#10b981" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16" class="progress-ring-circle" />
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
+            <span id="remainingLabel" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-400">Осталось</span>
+            <span id="remainingValue" class="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white">2000</span>
+            <span class="text-[10px] text-slate-400 font-medium">ккал</span>
+          </div>
+        </div>
+
+        <!-- Right Stats Breakdown -->
+        <div class="flex-1 space-y-2.5">
+          <!-- Formula Mode Toggle Pill -->
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Баланс дня</span>
+            <button onclick="toggleExerciseBudgetMode()" id="budgetModeBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+              + Спорт в бюджет
+            </button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 pt-0.5">
+            <!-- Base Goal -->
+            <div onclick="openModal('settingsModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-slate-400 transition">
+              <div class="text-[10px] text-slate-400 font-medium">Норма</div>
+              <div id="statBaseGoal" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">2000</div>
+            </div>
+
+            <!-- Eaten -->
+            <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
+              <div class="text-[10px] text-slate-400 font-medium">Съедено</div>
+              <div id="statEaten" class="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+            </div>
+
+            <!-- Burned (Garmin / Health + Workouts) -->
+            <div onclick="openModal('syncModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-orange-500/40 transition">
+              <div class="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
+                <span>Актив.</span>
+                <span class="text-[9px]">🔥</span>
+              </div>
+              <div id="statBurned" class="text-sm font-bold font-mono text-orange-500 mt-0.5">0</div>
+            </div>
+          </div>
+
+          <!-- Quick Weight Pill for Current Day -->
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+            <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <span>⚖️ Вес за день:</span>
+              <strong id="heroWeightText" class="font-mono text-slate-800 dark:text-slate-200">— кг</strong>
+            </span>
+            <button onclick="focusWeightInput()" class="text-blue-600 dark:text-blue-400 hover:underline font-medium text-[11px]">
+              Изменить →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OMNIBOX FAST INPUT CARD -->
+    <section class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">⚡ Быстрый ввод</span>
+          <span id="liveParseBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+            Напр.: Бэнто 550 · Зал -350 · Вес 73.4
+          </span>
+        </div>
+        <button onclick="toggleInputMode()" id="inputModeBtn" class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+          2 поля
+        </button>
+      </div>
+
+      <!-- Mode 1: Single Omnibox Input (Default) -->
+      <form id="omniboxForm" onsubmit="handleOmniboxSubmit(event)" class="relative flex items-center gap-2">
+        <div class="relative flex-1">
+          <input
+            type="text"
+            id="omniboxInput"
+            autocomplete="off"
+            placeholder="Бэнто 550, 320, Теннис -400, Вес 73.4..."
+            oninput="updateLiveParsePreview(this.value)"
+            class="w-full pl-3.5 pr-9 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+          />
+          <button type="button" id="clearOmniboxBtn" onclick="clearOmnibox()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 text-xs">
+            ✕
+          </button>
+        </div>
+        <button
+          type="submit"
+          class="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition flex-shrink-0"
+        >
+          Внести
+        </button>
+      </form>
+
+      <!-- Mode 2: Split Two-Field Input (Optional toggle for users who want separate Name & Kcal) -->
+      <form id="splitInputForm" onsubmit="handleSplitSubmit(event)" class="hidden space-y-2">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            id="splitNameInput"
+            placeholder="Название (необязательно)"
+            class="flex-1 px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <input
+            type="number"
+            step="any"
+            id="splitKcalInput"
+            placeholder="Ккал"
+            required
+            class="w-28 px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm font-mono font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" data-type="food" onclick="this.form.dataset.submitType='food'" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition">
+            + Добавить еду
+          </button>
+          <button type="submit" data-type="workout" onclick="this.form.dataset.submitType='workout'" class="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs transition">
+            🔥 Тренировка (-ккал)
+          </button>
+        </div>
+      </form>
+
+      <!-- Instant Anonymous Kcal Buttons + Quick Chips -->
+      <div class="space-y-2 pt-0.5">
+        <div class="flex items-center justify-between text-[11px] text-slate-400">
+          <span>Частые и быстрые в 1 тап:</span>
+          <button onclick="openModal('presetsModal')" class="text-slate-400 hover:text-emerald-400 transition">Изменить чипсы ✎</button>
+        </div>
+
+        <!-- Horizontal Scrollable / Wrapped Chips -->
+        <div id="quickChipsContainer" class="flex flex-wrap gap-1.5">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- DAILY LOG SECTION -->
+    <section class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          📋 Дневник за день
+        </h2>
+        <span id="entriesCountBadge" class="text-[11px] text-slate-400 font-medium">0 записей</span>
+      </div>
+
+      <!-- Synced Apple Health / Garmin Active Energy Banner (shown when healthSyncKcal > 0) -->
+      <div id="syncedActivityCard" class="hidden items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-orange-500/10 to-blue-500/10 border border-orange-500/25">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center text-sm font-bold">⌚</span>
+          <div>
+            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <span>Apple Health / Garmin</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">Auto Sync</span>
+            </div>
+            <div id="syncedActivityTime" class="text-[11px] text-slate-500 dark:text-slate-400">Активная энергия за день</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="syncedActivityKcal" class="text-sm font-extrabold font-mono text-orange-500">-0 ккал</span>
+          <button onclick="clearSyncedActivityForDay()" title="Сбросить синхронизированную активность" class="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/50 transition text-xs">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Entries List -->
+      <div id="dailyLogList" class="divide-y divide-slate-100 dark:divide-slate-800/80">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- WEIGHT TRACKER & 7-DAY EMA TREND CHART (MacroFactor style) -->
+    <section id="weightSection" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm space-y-3.5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            📈 Вес и сглаженный тренд (EMA 7д)
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Сглаживание отсекает скачки воды (как в MacroFactor)</p>
+        </div>
+        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-semibold">
+          <button onclick="setWeightChartRange(14)" id="rangeBtn14" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition">14д</button>
+          <button onclick="setWeightChartRange(30)" id="rangeBtn30" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">30д</button>
+          <button onclick="setWeightChartRange(90)" id="rangeBtn90" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">90д</button>
+        </div>
+      </div>
+
+      <!-- Weight KPI Summary Row -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
+          <div class="text-[10px] text-slate-400 font-medium">Текущий вес</div>
+          <div id="kpiRawWeight" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">—</div>
+        </div>
+        <div class="bg-blue-500/10 p-2.5 rounded-2xl border border-blue-500/20">
+          <div class="text-[10px] text-blue-500 dark:text-blue-400 font-medium">Тренд EMA</div>
+          <div id="kpiEmaWeight" class="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5">—</div>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
+          <div class="text-[10px] text-slate-400 font-medium">За 7 дней</div>
+          <div id="kpiWeeklyDelta" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">—</div>
+        </div>
+      </div>
+
+      <!-- Fast Weight Input Form for Selected Date -->
+      <form onsubmit="handleDirectWeightSubmit(event)" class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <input
+            type="number"
+            step="0.1"
+            min="25"
+            max="300"
+            id="directWeightInput"
+            placeholder="Вес за выбранный день (кг), напр. 73.4"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button type="submit" class="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold text-xs transition flex-shrink-0">
+          Сохранить вес
+        </button>
+      </form>
+
+      <!-- Interactive Canvas Chart Wrapper -->
+      <div class="relative w-full h-52 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-2">
+        <canvas id="weightChartCanvas" class="w-full h-full block"></canvas>
+        <!-- Empty state overlay if < 2 weight points -->
+        <div id="weightChartEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-slate-50/95 dark:bg-slate-900/95 rounded-2xl">
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">
+            Добавьте хотя бы 2 записи веса в разные дни или загрузите демо-тренд для проверки сглаживания EMA.
+          </p>
+          <button onclick="loadDemoWeightData()" class="px-3.5 py-2 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-400 border border-blue-500/30 text-xs font-semibold transition">
+            ✨ Загрузить демо-данные (21 день)
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span> Весы (сырой)</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-blue-500 inline-block"></span> Сглаженный тренд EMA</span>
+        </div>
+        <button onclick="loadDemoWeightData()" class="text-blue-500 hover:underline">Демо-график</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 1: APPLE HEALTH & GARMIN SYNC BRIDGE -->
+  <!-- ========================================== -->
+  <div id="syncModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-[#131b2e] w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🔄</span>
+          <h3 class="font-bold text-base text-slate-900 dark:text-white">Синхронизация Apple Health & Garmin</h3>
+        </div>
+        <button onclick="closeModal('syncModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+        <!-- Quick 1-Tap iOS Shortcut Trigger -->
+        <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-2.5">
+          <div class="font-bold text-sm text-blue-600 dark:text-blue-400">1. Запуск Быстрой команды на iPhone</div>
+          <p>Нажатие кнопки ниже вызовет системную команду iOS <code id="shortcutNamePreview" class="px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 font-mono">HealthSync</code>, которая прочитает вес и активные калории Garmin/Apple Watch из Apple Health и вернёт их в это приложение:</p>
+          <button onclick="triggerIosShortcut()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold text-xs shadow-lg shadow-blue-600/25 transition flex items-center justify-center gap-2">
+            <span>🚀 Запустить команду «HealthSync» в iOS</span>
+          </button>
+        </div>
+
+        <!-- Simulator to test URL Parameters right inside browser/preview -->
+        <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2.5">
+          <div class="font-bold text-sm text-emerald-600 dark:text-emerald-400">2. Тест URL-моста прямо сейчас</div>
+          <p>Симулируйте переход из Apple Shortcuts с параметрами <code class="font-mono text-[11px]">?weight=...&active_kcal=...</code> (повторный вызов за тот же день обновляет активные калории без дублей):</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-1">Тестовый вес (кг)</label>
+              <input type="number" step="0.1" id="simWeightInput" value="73.2" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400 mb-1">Активные ккал (Garmin/Health)</label>
+              <input type="number" id="simActiveKcalInput" value="540" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white" />
+            </div>
+          </div>
+          <button onclick="runUrlSyncSimulation()" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition">
+            ⚡ Симулировать редирект из Apple Health
+          </button>
+        </div>
+
+        <!-- URL Scheme Documentation for iOS Shortcuts -->
+        <div class="space-y-2">
+          <div class="font-bold text-slate-900 dark:text-white">Как устроен URL-мост (без серверов):</div>
+          <p>При открытии страницы скрипт автоматически проверяет адресную строку и сохраняет данные в базу телефона:</p>
+          <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 break-all select-all border border-slate-200 dark:border-slate-800" id="urlTemplateBox">
+            https://ВАШ-АДРЕС/?weight=73.4&active_kcal=520
+          </div>
+          <button onclick="copyUrlTemplate()" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-semibold transition">
+            📋 Скопировать шаблон URL
+          </button>
+
+          <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+            <li><code class="text-slate-700 dark:text-slate-200">weight=73.4</code> — записывает или обновляет вес за выбранный день.</li>
+            <li><code class="text-slate-700 dark:text-slate-200">active_kcal=520</code> — обновляет сожжённые калории Garmin / Apple Health за день (не создаёт дубликатов при повторной синхронизации).</li>
+            <li><code class="text-slate-700 dark:text-slate-200">food=Онигири&kcal=180</code> — мгновенно добавляет продукт в дневник.</li>
+            <li><code class="text-slate-700 dark:text-slate-200">date=YYYY-MM-DD</code> — опциональная дата (по умолчанию сегодня).</li>
+          </ul>
+        </div>
+
+        <!-- 4-Step iOS Shortcut Guide -->
+        <div class="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <div class="font-bold text-slate-900 dark:text-white">Инструкция для приложения «Команды» (iOS):</div>
+          <ol class="list-decimal pl-4 space-y-1 text-[11px]">
+            <li>Создайте команду с именем <strong>HealthSync</strong>.</li>
+            <li>Добавьте действие <strong>«Найти объекты Здоровья»</strong> → Тип: <em>Вес</em>, Сортировка: <em>Дата начала (По убыванию)</em>, Лимит: <em>1</em>.</li>
+            <li>Добавьте действие <strong>«Найти объекты Здоровья»</strong> → Тип: <em>Активная энергия</em>, Дата начала: <em>Сегодня</em> → <strong>«Посчитать» (Сумма)</strong>.</li>
+            <li>Добавьте действие <strong>«Открыть URL»</strong> и подставьте переменные Веса и Активной энергии в строку <code class="font-mono">?weight=...&active_kcal=...</code>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 2: SETTINGS & JSON BACKUP            -->
+  <!-- ========================================== -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-[#131b2e] w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <h3 class="font-bold text-base text-slate-900 dark:text-white">⚙️ Настройки и Бэкап</h3>
+        <button onclick="closeModal('settingsModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <!-- Daily Calorie Goal -->
+        <div class="space-y-1.5">
+          <label class="block font-bold text-slate-700 dark:text-slate-200">Базовая дневная норма калорий (ккал)</label>
+          <input
+            type="number"
+            min="800"
+            max="10000"
+            step="10"
+            id="settingsGoalInput"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono font-bold text-sm text-slate-900 dark:text-white"
+          />
+          <p class="text-[11px] text-slate-400">Можно перенести свою норму из Lose It! или выставить фиксированный дефицит.</p>
+        </div>
+
+        <!-- Exercise Calories Toggle -->
+        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+          <div class="pr-3">
+            <div class="font-bold text-slate-800 dark:text-slate-100">Добавлять калории тренировок к остатку</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Если включено: Остаток = Норма + Активность − Съедено. Если выключено: активность считается отдельно.</div>
+          </div>
+          <input type="checkbox" id="settingsExerciseToggle" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer" />
+        </div>
+
+        <!-- iOS Shortcut Name -->
+        <div class="space-y-1.5">
+          <label class="block font-bold text-slate-700 dark:text-slate-200">Имя команды в iOS Shortcuts</label>
+          <input
+            type="text"
+            id="settingsShortcutInput"
+            placeholder="HealthSync"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
+          />
+        </div>
+
+        <button onclick="saveSettingsFromModal()" class="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition">
+          💾 Сохранить настройки
+        </button>
+
+        <hr class="border-slate-200 dark:border-slate-800" />
+
+        <!-- Backup & Restore Section -->
+        <div class="space-y-2.5">
+          <div class="font-bold text-slate-800 dark:text-slate-100">Локальная база данных (JSON Бэкап)</div>
+          <p class="text-[11px] text-slate-400">Все данные хранятся на вашем устройстве в <code class="font-mono">localStorage</code>. Вы можете в любой момент экспортировать или импортировать их:</p>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="exportDataJson()" class="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 font-semibold text-slate-800 dark:text-slate-200 transition">
+              ⬇️ Скачать JSON
+            </button>
+            <button onclick="copyDataJsonToClipboard()" class="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 font-semibold text-slate-800 dark:text-slate-200 transition">
+              📋 Скопировать JSON
+            </button>
+          </div>
+
+          <div class="pt-1">
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Импорт из файла JSON:</label>
+            <input type="file" accept=".json,application/json" onchange="importDataJsonFile(event)" class="block w-full text-[11px] text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-500/15 file:text-blue-500 hover:file:bg-blue-500/25" />
+          </div>
+        </div>
+
+        <hr class="border-slate-200 dark:border-slate-800" />
+
+        <!-- Danger Zone: Reset with inline two-step confirmation -->
+        <div class="space-y-2">
+          <button id="resetDataBtn" onclick="requestResetData()" class="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/25 font-semibold text-xs transition">
+            🗑️ Очистить все данные приложения
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 3: CUSTOMIZE QUICK CHIPS (PRESETS)   -->
+  <!-- ========================================== -->
+  <div id="presetsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-[#131b2e] w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[88vh] flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <h3 class="font-bold text-base text-slate-900 dark:text-white">🍱 Быстрые чипсы (Шаблоны в 1 тап)</h3>
+        <button onclick="closeModal('presetsModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <form onsubmit="addCustomPreset(event)" class="flex gap-2">
+          <input type="text" id="newPresetName" placeholder="Название (напр. Онигири тунец)" required class="flex-1 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white" />
+          <input type="number" id="newPresetKcal" placeholder="Ккал (190 или -300)" required class="w-28 px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-slate-900 dark:text-white" />
+          <button type="submit" class="px-3.5 py-2.5 rounded-xl bg-emerald-500 text-white font-bold">+</button>
+        </form>
+        <p class="text-[11px] text-slate-400">Отрицательное число (например, <code class="font-mono">-350</code>) создаёт чипс тренировки.</p>
+
+        <div id="presetsModalList" class="divide-y divide-slate-200 dark:divide-slate-800">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 4: EDIT LOG ENTRY                    -->
+  <!-- ========================================== -->
+  <div id="editEntryModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white dark:bg-[#131b2e] w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <h3 class="font-bold text-sm text-slate-900 dark:text-white">Редактировать запись</h3>
+        <button onclick="closeModal('editEntryModal')" class="p-1.5 rounded-xl text-slate-400 hover:text-white">✕</button>
+      </div>
+      <form onsubmit="saveEditedEntry(event)" class="p-5 space-y-3 text-xs">
+        <input type="hidden" id="editEntryId" />
+        <div>
+          <label class="block text-slate-400 mb-1">Название</label>
+          <input type="text" id="editEntryName" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-sm text-slate-900 dark:text-white" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Калории (ккал)</label>
+          <input type="number" id="editEntryKcal" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white" />
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal('editEntryModal')" class="flex-1 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">Отмена</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-bold">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC -->
+  <script>
+    /********************************************************************
+     * 1. STATE & STORAGE STRUCTURE
+     ********************************************************************/
+    const STORAGE_KEY = 'kcal_lite_pwa_v1';
+
+    const DEFAULT_PRESETS = [
+      { id: 'p1', name: 'Онигири лосось', kcal: 180, type: 'food' },
+      { id: 'p2', name: 'Бэнто комбини', kcal: 580, type: 'food' },
+      { id: 'p3', name: 'Кофе латте', kcal: 110, type: 'food' },
+      { id: 'p4', name: 'Протеин', kcal: 120, type: 'food' },
+      { id: 'p5', name: 'Рамэн', kcal: 750, type: 'food' },
+      { id: 'p6', name: 'Зал / Кардио', kcal: -350, type: 'workout' }
+    ];
+
+    function getLocalDateString(dateObj = new Date()) {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getCurrentTimeStr() {
+      const now = new Date();
+      return now.toTimeString().slice(0, 5);
+    }
+
+    let appState = {
+      settings: {
+        dailyGoal: 2000,
+        includeExerciseInBudget: true,
+        shortcutName: 'HealthSync',
+        theme: 'dark'
+      },
+      presets: [...DEFAULT_PRESETS],
+      // days: { 'YYYY-MM-DD': { entries: [{id, name, kcal, type, time}], healthSyncKcal: 0, healthSyncTime: null } }
+      days: {},
+      // weights: { 'YYYY-MM-DD': 73.4 }
+      weights: {}
+    };
+
+    let selectedDate = getLocalDateString();
+    let weightChartDaysRange = 14;
+    let isSplitInputMode = false;
+    let resetConfirmPending = false;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          appState = {
+            settings: { ...appState.settings, ...(parsed.settings || {}) },
+            presets: Array.isArray(parsed.presets) && parsed.presets.length ? parsed.presets : [...DEFAULT_PRESETS],
+            days: parsed.days || {},
+            weights: parsed.weights || {}
+          };
+        }
+      } catch (err) {
+        console.error('Ошибка чтения localStorage:', err);
+      }
+      applyTheme(appState.settings.theme);
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (err) {
+        console.error('Ошибка записи в localStorage:', err);
+      }
+    }
+
+    function ensureDayRecord(dateStr) {
+      if (!appState.days[dateStr]) {
+        appState.days[dateStr] = {
+          entries: [],
+          healthSyncKcal: 0,
+          healthSyncTime: null
+        };
+      }
+      return appState.days[dateStr];
+    }
+
+    /********************************************************************
+     * 2. SMART OMNIBOX REGEX PARSER
+     * Supports:
+     * - "Вес 73.4" or "73.4 кг" or "73,4kg" -> Weight entry
+     * - "550" -> Quick food entry (+550 kcal)
+     * - "-350" -> Quick workout entry (-350 kcal)
+     * - "Теннис -450" or "Зал -350 ккал" -> Workout entry ("Теннис", 450 burned)
+     * - "Бэнто 550" or "Онигири с лососем 180 ккал" -> Food entry ("Бэнто", 550 kcal)
+     ********************************************************************/
+    function parseOmniboxString(rawInput) {
+      const str = (rawInput || '').trim();
+      if (!str) return null;
+
+      // 1. Check explicit Weight pattern: "Вес 73.4", "вес: 73,4", "73.4 кг", "73,4kg"
+      const weightPrefixMatch = str.match(/^(?:вес|weight)\s*[:=]?\s*(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:кг|kg)?$/i);
+      if (weightPrefixMatch) {
+        const w = parseFloat(weightPrefixMatch[1].replace(',', '.'));
+        if (w >= 25 && w <= 300) return { kind: 'weight', weight: w };
+      }
+
+      const weightSuffixMatch = str.match(/^(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:кг|kg)$/i);
+      if (weightSuffixMatch) {
+        const w = parseFloat(weightSuffixMatch[1].replace(',', '.'));
+        if (w >= 25 && w <= 300) return { kind: 'weight', weight: w };
+      }
+
+      // 2. Check pure number: "550" or "-350"
+      const pureNumMatch = str.match(/^([+-]?\d+)\s*(?:ккал|kcal|кал)?$/i);
+      if (pureNumMatch) {
+        const val = parseInt(pureNumMatch[1], 10);
+        if (val < 0) {
+          return { kind: 'workout', name: 'Тренировка', kcal: Math.abs(val) };
+        } else if (val > 0) {
+          return { kind: 'food', name: 'Быстрый ввод', kcal: val };
+        }
+      }
+
+      // 3. Check "Name +/-Number" at the end: e.g., "Бэнто 550", "Теннис -450 ккал"
+      const trailingNumMatch = str.match(/^(.+?)\s+([+-]?\d+)\s*(?:ккал|kcal|кал)?$/i);
+      if (trailingNumMatch) {
+        const name = trailingNumMatch[1].trim();
+        const val = parseInt(trailingNumMatch[2], 10);
+        if (val < 0) {
+          return { kind: 'workout', name: name || 'Тренировка', kcal: Math.abs(val) };
+        } else if (val > 0) {
+          return { kind: 'food', name: name || 'Еда', kcal: val };
+        }
+      }
+
+      // 4. Check "+/-Number Name" at the beginning: e.g., "550 Бэнто", "-400 Бег"
+      const leadingNumMatch = str.match(/^([+-]?\d+)\s*(?:ккал|kcal|кал)?\s+(.+)$/i);
+      if (leadingNumMatch) {
+        const val = parseInt(leadingNumMatch[1], 10);
+        const name = leadingNumMatch[2].trim();
+        if (val < 0) {
+          return { kind: 'workout', name, kcal: Math.abs(val) };
+        } else if (val > 0) {
+          return { kind: 'food', name, kcal: val };
+        }
+      }
+
+      return { kind: 'invalid' };
+    }
+
+    function updateLiveParsePreview(val) {
+      const badge = document.getElementById('liveParseBadge');
+      const clearBtn = document.getElementById('clearOmniboxBtn');
+
+      if (!val || !val.trim()) {
+        clearBtn.classList.add('hidden');
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium';
+        badge.textContent = 'Напр.: Бэнто 550 · Зал -350 · Вес 73.4';
+        return;
+      }
+
+      clearBtn.classList.remove('hidden');
+      const parsed = parseOmniboxString(val);
+
+      if (!parsed || parsed.kind === 'invalid') {
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-medium';
+        badge.textContent = 'Укажите число калорий (напр. «Обед 600»)';
+      } else if (parsed.kind === 'food') {
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-semibold';
+        badge.textContent = `🍱 Еда: «${parsed.name}» (+${parsed.kcal} ккал)`;
+      } else if (parsed.kind === 'workout') {
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 font-semibold';
+        badge.textContent = `🔥 Спорт: «${parsed.name}» (-${parsed.kcal} ккал)`;
+      } else if (parsed.kind === 'weight') {
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold';
+        badge.textContent = `⚖️ Запись веса: ${parsed.weight} кг`;
+      }
+    }
+
+    function clearOmnibox() {
+      const input = document.getElementById('omniboxInput');
+      input.value = '';
+      updateLiveParsePreview('');
+      input.focus();
+    }
+
+    function handleOmniboxSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('omniboxInput');
+      const parsed = parseOmniboxString(input.value);
+
+      if (!parsed || parsed.kind === 'invalid') {
+        showToast('Введите название и калории, например: Бэнто 550', '⚠️');
+        return;
+      }
+
+      if (parsed.kind === 'weight') {
+        logWeightForDate(selectedDate, parsed.weight);
+        showToast(`Вес ${parsed.weight} кг сохранён`, '⚖️');
+      } else if (parsed.kind === 'food') {
+        addLogEntry(selectedDate, parsed.name, parsed.kcal, 'food');
+        showToast(`+${parsed.kcal} ккал (${parsed.name})`, '🍱');
+      } else if (parsed.kind === 'workout') {
+        addLogEntry(selectedDate, parsed.name, parsed.kcal, 'workout');
+        showToast(`Тренировка: -${parsed.kcal} ккал (${parsed.name})`, '🔥');
+      }
+
+      input.value = '';
+      updateLiveParsePreview('');
+    }
+
+    function handleSplitSubmit(e) {
+      e.preventDefault();
+      const submitType = e.target.dataset.submitType || 'food';
+      const nameInput = document.getElementById('splitNameInput');
+      const kcalInput = document.getElementById('splitKcalInput');
+
+      const rawKcal = Math.abs(parseInt(kcalInput.value, 10));
+      if (!rawKcal || rawKcal <= 0) {
+        showToast('Укажите количество калорий', '⚠️');
+        return;
+      }
+
+      const defaultName = submitType === 'workout' ? 'Тренировка' : 'Быстрый ввод';
+      const name = (nameInput.value || '').trim() || defaultName;
+
+      addLogEntry(selectedDate, name, rawKcal, submitType);
+      showToast(
+        submitType === 'workout' ? `Тренировка: -${rawKcal} ккал (${name})` : `+${rawKcal} ккал (${name})`,
+        submitType === 'workout' ? '🔥' : '🍱'
+      );
+
+      nameInput.value = '';
+      kcalInput.value = '';
+    }
+
+    function toggleInputMode() {
+      isSplitInputMode = !isSplitInputMode;
+      const omni = document.getElementById('omniboxForm');
+      const split = document.getElementById('splitInputForm');
+      const btn = document.getElementById('inputModeBtn');
+
+      if (isSplitInputMode) {
+        omni.classList.add('hidden');
+        split.classList.remove('hidden');
+        btn.textContent = '1 строкой';
+        document.getElementById('splitKcalInput').focus();
+      } else {
+        split.classList.add('hidden');
+        omni.classList.remove('hidden');
+        btn.textContent = '2 поля';
+        document.getElementById('omniboxInput').focus();
+      }
+    }
+
+    /********************************************************************
+     * 3. URL PARAMETER BRIDGE FOR APPLE HEALTH & GARMIN
+     * Parses ?weight=73.4&active_kcal=520&food=Онигири&kcal=180&date=YYYY-MM-DD
+     ********************************************************************/
+    function processUrlQueryParameters(searchString) {
+      if (!searchString || searchString.length <= 1) return;
+
+      const params = new URLSearchParams(searchString);
+      const targetDate = params.get('date') && /^\d{4}-\d{2}-\d{2}$/.test(params.get('date'))
+        ? params.get('date')
+        : getLocalDateString();
+
+      const syncedMessages = [];
+
+      // 1. Parse weight parameter (?weight=73.4 or 73,4)
+      if (params.has('weight')) {
+        const rawW = params.get('weight').replace(',', '.');
+        const weightVal = parseFloat(rawW);
+        if (!isNaN(weightVal) && weightVal >= 25 && weightVal <= 300) {
+          appState.weights[targetDate] = Math.round(weightVal * 10) / 10;
+          syncedMessages.push(`Вес ${appState.weights[targetDate]} кг`);
+        }
+      }
+
+      // 2. Parse Apple Health / Garmin active_kcal parameter (&active_kcal=520)
+      if (params.has('active_kcal')) {
+        const activeVal = Math.round(parseFloat(params.get('active_kcal')));
+        if (!isNaN(activeVal) && activeVal >= 0 && activeVal <= 15000) {
+          const dayRec = ensureDayRecord(targetDate);
+          dayRec.healthSyncKcal = activeVal;
+          dayRec.healthSyncTime = getCurrentTimeStr();
+          syncedMessages.push(`Активность ${activeVal} ккал`);
+        }
+      }
+
+      // 3. Optional quick food log via URL (&food=Онигири&kcal=180)
+      if (params.has('kcal')) {
+        const kcalVal = Math.round(parseFloat(params.get('kcal')));
+        const foodName = (params.get('food') || 'Быстрый ввод').trim();
+        if (!isNaN(kcalVal) && kcalVal !== 0) {
+          const dayRec = ensureDayRecord(targetDate);
+          dayRec.entries.unshift({
+            id: 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            name: foodName,
+            kcal: Math.abs(kcalVal),
+            type: kcalVal < 0 ? 'workout' : 'food',
+            time: getCurrentTimeStr()
+          });
+          syncedMessages.push(`${foodName} (${kcalVal > 0 ? '+' : ''}${kcalVal} ккал)`);
+        }
+      }
+
+      if (syncedMessages.length > 0) {
+        selectedDate = targetDate;
+        saveState();
+        renderAll();
+        showToast(`Синхронизировано из Health: ${syncedMessages.join(' · ')}`, '⌚');
+
+        // Clean URL query parameters so page refresh doesn't duplicate entries
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (err) {
+          console.warn('Could not replace history state:', err);
+        }
+      }
+    }
+
+    function runUrlSyncSimulation() {
+      const simW = document.getElementById('simWeightInput').value;
+      const simKcal = document.getElementById('simActiveKcalInput').value;
+      const query = `?weight=${encodeURIComponent(simW)}&active_kcal=${encodeURIComponent(simKcal)}&date=${encodeURIComponent(selectedDate)}`;
+      closeModal('syncModal');
+      processUrlQueryParameters(query);
+    }
+
+    function triggerIosShortcut() {
+      const shortcutName = encodeURIComponent(appState.settings.shortcutName || 'HealthSync');
+      window.location.href = `shortcuts://run-shortcut?name=${shortcutName}`;
+    }
+
+    /********************************************************************
+     * 4. LOGGING ENTRIES, PRESETS & WEIGHT
+     ********************************************************************/
+    function addLogEntry(dateStr, name, kcal, type = 'food') {
+      const dayRec = ensureDayRecord(dateStr);
+      const cleanName = (name || (type === 'workout' ? 'Тренировка' : 'Быстрый ввод')).trim();
+      const cleanKcal = Math.round(Math.abs(Number(kcal)));
+
+      dayRec.entries.unshift({
+        id: 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: cleanName,
+        kcal: cleanKcal,
+        type: type === 'workout' ? 'workout' : 'food',
+        time: getCurrentTimeStr()
+      });
+
+      // Automatically promote frequent named items into presets if not generic
+      if (cleanName !== 'Быстрый ввод' && cleanName !== 'Тренировка') {
+        const signedKcal = type === 'workout' ? -cleanKcal : cleanKcal;
+        const exists = appState.presets.some(
+          p => p.name.toLowerCase() === cleanName.toLowerCase() && p.kcal === signedKcal
+        );
+        if (!exists && appState.presets.length < 12) {
+          appState.presets.push({
+            id: 'p_' + Date.now(),
+            name: cleanName,
+            kcal: signedKcal,
+            type
+          });
+        }
+      }
+
+      saveState();
+      renderAll();
+    }
+
+    function deleteLogEntry(entryId) {
+      const dayRec = ensureDayRecord(selectedDate);
+      dayRec.entries = dayRec.entries.filter(item => item.id !== entryId);
+      saveState();
+      renderAll();
+      showToast('Запись удалена', '🗑️');
+    }
+
+    function openEditEntryModal(entryId) {
+      const dayRec = ensureDayRecord(selectedDate);
+      const item = dayRec.entries.find(e => e.id === entryId);
+      if (!item) return;
+
+      document.getElementById('editEntryId').value = item.id;
+      document.getElementById('editEntryName').value = item.name;
+      document.getElementById('editEntryKcal').value = item.type === 'workout' ? -item.kcal : item.kcal;
+      openModal('editEntryModal');
+    }
+
+    function saveEditedEntry(e) {
+      e.preventDefault();
+      const id = document.getElementById('editEntryId').value;
+      const newName = document.getElementById('editEntryName').value.trim();
+      const rawKcal = parseInt(document.getElementById('editEntryKcal').value, 10);
+
+      if (!newName || isNaN(rawKcal) || rawKcal === 0) return;
+
+      const dayRec = ensureDayRecord(selectedDate);
+      const item = dayRec.entries.find(entry => entry.id === id);
+      if (item) {
+        item.name = newName;
+        item.kcal = Math.abs(rawKcal);
+        item.type = rawKcal < 0 ? 'workout' : 'food';
+        saveState();
+        renderAll();
+        closeModal('editEntryModal');
+        showToast('Запись обновлена', '✅');
+      }
+    }
+
+    function clearSyncedActivityForDay() {
+      const dayRec = ensureDayRecord(selectedDate);
+      dayRec.healthSyncKcal = 0;
+      dayRec.healthSyncTime = null;
+      saveState();
+      renderAll();
+      showToast('Синхронизированная активность сброшена', '🗑️');
+    }
+
+    function logWeightForDate(dateStr, weightVal) {
+      const w = Math.round(parseFloat(weightVal) * 10) / 10;
+      if (isNaN(w) || w < 25 || w > 300) return;
+      appState.weights[dateStr] = w;
+      saveState();
+      renderAll();
+    }
+
+    function handleDirectWeightSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('directWeightInput');
+      const val = parseFloat(input.value);
+      if (isNaN(val) || val < 25 || val > 300) {
+        showToast('Введите корректный вес (от 25 до 300 кг)', '⚠️');
+        return;
+      }
+      logWeightForDate(selectedDate, val);
+      showToast(`Вес ${val.toFixed(1)} кг сохранён на ${formatShortDateRu(selectedDate)}`, '⚖️');
+    }
+
+    function focusWeightInput() {
+      const el = document.getElementById('directWeightInput');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => el.focus(), 250);
+    }
+
+    /********************************************************************
+     * 5. DATE NAVIGATION
+     ********************************************************************/
+    function shiftDate(deltaDays) {
+      const parts = selectedDate.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      d.setDate(d.getDate() + deltaDays);
+      selectedDate = getLocalDateString(d);
+      renderAll();
+    }
+
+    function onDatePickerChange(val) {
+      if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        selectedDate = val;
+        renderAll();
+      }
+    }
+
+    function jumpToToday() {
+      selectedDate = getLocalDateString();
+      renderAll();
+    }
+
+    function formatShortDateRu(dateStr) {
+      const parts = dateStr.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    }
+
+    function renderDateHeader() {
+      const todayStr = getLocalDateString();
+      const parts = selectedDate.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+
+      const titleEl = document.getElementById('dateTitleText');
+      const subEl = document.getElementById('dateSubText');
+      const jumpBtn = document.getElementById(' jumpTodayBtn');
+      const picker = document.getElementById('datePickerInput');
+
+      picker.value = selectedDate;
+
+      const weekday = d.toLocaleDateString('ru-RU', { weekday: 'long' });
+      const formattedDate = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+      if (selectedDate === todayStr) {
+        titleEl.textContent = `Сегодня, ${d.getDate()} ${d.toLocaleDateString('ru-RU', { month: 'short' })}`;
+        subEl.textContent = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+        jumpBtn.classList.add('hidden');
+      } else {
+        titleEl.textContent = formattedDate;
+        subEl.textContent = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+        jumpBtn.classList.remove('hidden');
+      }
+    }
+
+    /********************************************************************
+     * 6. RENDERING HERO CARD, QUICK CHIPS & DAILY LOG
+     ********************************************************************/
+    function toggleExerciseBudgetMode() {
+      appState.settings.includeExerciseInBudget = !appState.settings.includeExerciseInBudget;
+      saveState();
+      renderAll();
+      showToast(
+        appState.settings.includeExerciseInBudget
+          ? 'Калории тренировок прибавляются к бюджету дня'
+          : 'Калории тренировок считаются отдельно от нормы',
+        '⚙️'
+      );
+    }
+
+    function renderHeroSummary() {
+      const dayRec = ensureDayRecord(selectedDate);
+      const baseGoal = Number(appState.settings.dailyGoal) || 2000;
+
+      let eatenKcal = 0;
+      let manualWorkoutKcal = 0;
+
+      for (const entry of dayRec.entries) {
+        if (entry.type === 'workout') {
+          manualWorkoutKcal += Number(entry.kcal) || 0;
+        } else {
+          eatenKcal += Number(entry.kcal) || 0;
+        }
+      }
+
+      const syncedBurned = Number(dayRec.healthSyncKcal) || 0;
+      const totalBurned = manualWorkoutKcal + syncedBurned;
+
+      const includeExercise = appState.settings.includeExerciseInBudget;
+      const effectiveBudget = includeExercise ? baseGoal + totalBurned : baseGoal;
+      const remaining = effectiveBudget - eatenKcal;
+
+      // Update numbers
+      document.getElementById('statBaseGoal').textContent = baseGoal;
+      document.getElementById('statEaten').textContent = eatenKcal;
+      document.getElementById('statBurned').textContent = totalBurned;
+
+      const badge = document.getElementById('budgetModeBadge');
+      if (includeExercise) {
+        badge.textContent = '+ Спорт в бюджет';
+        badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition';
+      } else {
+        badge.textContent = 'Без учёта спорта';
+        badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:bg-slate-700 transition';
+      }
+
+      const remLabel = document.getElementById('remainingLabel');
+      const remValue = document.getElementById('remainingValue');
+      const circle = document.getElementById('calorieRingCircle');
+
+      const circumference = 2 * Math.PI * 50; // r=50 -> 314.16
+      const ratio = effectiveBudget > 0 ? Math.min(eatenKcal / effectiveBudget, 1) : 0;
+      const offset = circumference - ratio * circumference;
+      circle.style.strokeDashoffset = offset.toFixed(2);
+
+      if (remaining >= 0) {
+        remLabel.textContent = 'Осталось';
+        remValue.textContent = remaining;
+        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white';
+        circle.style.stroke = ratio > 0.9 ? '#f59e0b' : '#10b981';
+      } else {
+        remLabel.textContent = 'Перебор';
+        remValue.textContent = `+${Math.abs(remaining)}`;
+        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-red-500';
+        circle.style.stroke = '#ef4444';
+      }
+
+      // Update current day's weight display
+      const dayWeight = appState.weights[selectedDate];
+      const heroWeightText = document.getElementById('heroWeightText');
+      const directWeightInput = document.getElementById('directWeightInput');
+
+      if (dayWeight !== undefined) {
+        heroWeightText.textContent = `${dayWeight.toFixed(1)} кг`;
+        directWeightInput.value = dayWeight;
+      } else {
+        heroWeightText.textContent = '— кг';
+        directWeightInput.value = '';
+      }
+    }
+
+    function renderQuickChips() {
+      const container = document.getElementById('quickChipsContainer');
+      const anonymousButtons = [100, 250, 500].map(val => `
+        <button
+          onclick="addLogEntry('${selectedDate}', 'Быстрый ввод', ${val}, 'food'); showToast('+${val} ккал (Быстрый ввод)', '⚡')"
+          class="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold active:scale-95 transition"
+        >
+          +${val}
+        </button>
+      `).join('');
+
+      const presetButtons = appState.presets.map(p => {
+        const isWorkout = p.kcal < 0 || p.type === 'workout';
+        const absKcal = Math.abs(p.kcal);
+        const colorClasses = isWorkout
+          ? 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/20'
+          : 'bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200/80 dark:border-slate-700/70';
+
+        const escapedName = p.name.replace(/'/g, "\\'");
+        return `
+          <button
+            onclick="addLogEntry('${selectedDate}', '${escapedName}', ${absKcal}, '${isWorkout ? 'workout' : 'food'}'); showToast('${escapedName} (${isWorkout ? '-' : '+'}${absKcal} ккал)', '${isWorkout ? '🔥' : '🍱'}')"
+            class="px-2.5 py-1.5 rounded-xl border ${colorClasses} text-xs font-medium active:scale-95 transition flex items-center gap-1.5"
+          >
+            <span>${escapeHtml(p.name)}</span>
+            <span class="font-mono font-bold opacity-75">${isWorkout ? '-' : ''}${absKcal}</span>
+          </button>
+        `;
+      }).join('');
+
+      container.innerHTML = anonymousButtons + presetButtons;
+    }
+
+    function renderDailyLog() {
+      const dayRec = ensureDayRecord(selectedDate);
+      const listEl = document.getElementById('dailyLogList');
+      const countBadge = document.getElementById('entriesCountBadge');
+      const syncedCard = document.getElementById('syncedActivityCard');
+
+      // Show or hide Apple Health / Garmin synced active calories
+      if (dayRec.healthSyncKcal && dayRec.healthSyncKcal > 0) {
+        syncedCard.classList.remove('hidden');
+        syncedCard.classList.add('flex');
+        document.getElementById('syncedActivityKcal').textContent = `-${dayRec.healthSyncKcal} ккал`;
+        document.getElementById('syncedActivityTime').textContent = dayRec.healthSyncTime
+          ? `Обновлено в ${dayRec.healthSyncTime}`
+          : 'Активная энергия за день';
+      } else {
+        syncedCard.classList.add('hidden');
+        syncedCard.classList.remove('flex');
+      }
+
+      const entries = dayRec.entries || [];
+      countBadge.textContent = `${entries.length} ${pluralizeRu(entries.length, 'запись', 'записи', 'записей')}`;
+
+      if (entries.length === 0) {
+        listEl.innerHTML = `
+          <div class="py-8 text-center text-xs text-slate-400 dark:text-slate-500">
+            Пока нет записей за этот день.<br/>Впишите еду в строку выше или нажмите на чипс в 1 тап.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = entries.map(item => {
+        const isWorkout = item.type === 'workout';
+        const badgeColor = isWorkout
+          ? 'text-orange-500 bg-orange-500/10'
+          : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
+        const icon = isWorkout ? '🔥' : '🍽️';
+        const sign = isWorkout ? '−' : '+';
+
+        return `
+          <div class="py-2.5 flex items-center justify-between gap-2 group">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm flex-shrink-0">${icon}</span>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">${escapeHtml(item.name)}</div>
+                <div class="text-[11px] text-slate-400 font-mono">${item.time || ''}</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <span class="px-2.5 py-1 rounded-xl font-mono text-xs font-bold ${badgeColor}">
+                ${sign}${item.kcal} ккал
+              </span>
+              <button onclick="openEditEntryModal('${item.id}')" aria-label="Изменить" class="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-xs">
+                ✎
+              </button>
+              <button onclick="deleteLogEntry('${item.id}')" aria-label="Удалить" class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-xs">
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /********************************************************************
+     * 7. WEIGHT TRACKER & 7-DAY EMA SMOOTHED TREND CHART (CANVAS)
+     * Formula: EMA_today = Weight_today * k + EMA_yesterday * (1 - k)
+     * where k = 2 / (7 + 1) = 0.25 (standard 7-day EMA smoothing)
+     ********************************************************************/
+    function computeWeightAndEmaSeries() {
+      const allDates = Object.keys(appState.weights).sort();
+      if (allDates.length === 0) return [];
+
+      const k = 2 / (7 + 1); // 0.25 smoothing factor
+      const series = [];
+      let prevEma = null;
+
+      // Walk day-by-day from first recorded weight to last recorded weight (or today)
+      const firstParts = allDates[0].split('-').map(Number);
+      const lastDateStr = allDates[allDates.length - 1] > selectedDate ? allDates[allDates.length - 1] : selectedDate;
+      const lastParts = lastDateStr.split('-').map(Number);
+
+      const cursor = new Date(firstParts[0], firstParts[1] - 1, firstParts[2]);
+      const end = new Date(lastParts[0], lastParts[1] - 1, lastParts[2]);
+
+      while (cursor <= end) {
+        const dStr = getLocalDateString(cursor);
+        const rawW = appState.weights[dStr];
+
+        if (rawW !== undefined) {
+          prevEma = prevEma === null ? rawW : rawW * k + prevEma * (1 - k);
+          series.push({
+            date: dStr,
+            raw: rawW,
+            ema: Math.round(prevEma * 100) / 100
+          });
+        } else if (prevEma !== null) {
+          // Carry EMA forward on unlogged days
+          series.push({
+            date: dStr,
+            raw: null,
+            ema: Math.round(prevEma * 100) / 100
+          });
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      return series;
+    }
+
+    function setWeightChartRange(days) {
+      weightChartDaysRange = days;
+      [14, 30, 90].forEach(d => {
+        const btn = document.getElementById(`rangeBtn${d}`);
+        if (d === days) {
+          btn.className = 'px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition';
+        } else {
+          btn.className = 'px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition';
+        }
+      });
+      renderWeightSection();
+    }
+
+    function renderWeightSection() {
+      const fullSeries = computeWeightAndEmaSeries();
+      const loggedPoints = fullSeries.filter(p => p.raw !== null);
+
+      const kpiRaw = document.getElementById('kpiRawWeight');
+      const kpiEma = document.getElementById('kpiEmaWeight');
+      const kpiDelta = document.getElementById('kpiWeeklyDelta');
+      const emptyOverlay = document.getElementById('weightChartEmptyState');
+
+      if (loggedPoints.length === 0) {
+        kpiRaw.textContent = '—';
+        kpiEma.textContent = '—';
+        kpiDelta.textContent = '—';
+        emptyOverlay.classList.remove('hidden');
+        return;
+      }
+
+      const latestLogged = loggedPoints[loggedPoints.length - 1];
+      kpiRaw.textContent = `${latestLogged.raw.toFixed(1)} кг`;
+      kpiEma.textContent = `${latestLogged.ema.toFixed(1)} кг`;
+
+      // Calculate 7-day EMA delta
+      if (fullSeries.length >= 7) {
+        const currentEma = fullSeries[fullSeries.length - 1].ema;
+        const weekAgoEma = fullSeries[Math.max(0, fullSeries.length - 8)].ema;
+        const diff = currentEma - weekAgoEma;
+        const sign = diff > 0 ? '+' : '';
+        kpiDelta.textContent = `${sign}${diff.toFixed(1)} кг`;
+        kpiDelta.className = `text-sm font-bold font-mono mt-0.5 ${
+          diff < -0.05 ? 'text-emerald-500' : diff > 0.05 ? 'text-amber-500' : 'text-slate-700 dark:text-slate-200'
+        }`;
+      } else {
+        kpiDelta.textContent = 'мало дн.';
+      }
+
+      if (loggedPoints.length < 2) {
+        emptyOverlay.classList.remove('hidden');
+        return;
+      } else {
+        emptyOverlay.classList.add('hidden');
+      }
+
+      const sliced = fullSeries.slice(-weightChartDaysRange);
+      drawWeightCanvas(sliced);
+    }
+
+    function drawWeightCanvas(series) {
+      const canvas = document.getElementById('weightChartCanvas');
+      if (!canvas || series.length === 0) return;
+
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(rect.width - 16, 240);
+      const height = Math.max(rect.height - 16, 160);
+
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      const isDark = document.documentElement.classList.contains('dark');
+      const padLeft = 36;
+      const padRight = 12;
+      const padTop = 14;
+      const padBottom = 24;
+
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const values = [];
+      series.forEach(p => {
+        if (p.raw !== null) values.push(p.raw);
+        if (p.ema !== null) values.push(p.ema);
+      });
+
+      let minVal = Math.min(...values);
+      let maxVal = Math.max(...values);
+      if (maxVal - minVal < 1.2) {
+        minVal -= 0.6;
+        maxVal += 0.6;
+      } else {
+        const margin = (maxVal - minVal) * 0.15;
+        minVal -= margin;
+        maxVal += margin;
+      }
+
+      const getX = idx => padLeft + (series.length === 1 ? plotW / 2 : (idx / (series.length - 1)) * plotW);
+      const getY = val => padTop + plotH - ((val - minVal) / (maxVal - minVal)) * plotH;
+
+      // Horizontal grid lines & Y labels
+      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(100, 116, 139, 0.15)';
+      ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
+      ctx.font = '10px JetBrains Mono, monospace';
+      ctx.textAlign = 'right';
+
+      const steps = 3;
+      for (let i = 0; i <= steps; i++) {
+        const v = minVal + ((maxVal - minVal) * i) / steps;
+        const y = getY(v);
+        ctx.beginPath();
+        ctx.moveTo(padLeft, y);
+        ctx.lineTo(width - padRight, y);
+        ctx.stroke();
+        ctx.fillText(v.toFixed(1), padLeft - 5, y + 3);
+      }
+
+      // X-axis date labels (first, middle, last)
+      ctx.textAlign = 'center';
+      const labelIndices = [0, Math.floor((series.length - 1) / 2), series.length - 1];
+      const usedIdx = [...new Set(labelIndices)];
+      usedIdx.forEach(idx => {
+        const pt = series[idx];
+        if (!pt) return;
+        const x = getX(idx);
+        const label = pt.date.slice(8, 10) + '.' + pt.date.slice(5, 7);
+        ctx.fillText(label, x, height - 6);
+      });
+
+      // Draw EMA gradient area fill
+      ctx.beginPath();
+      series.forEach((pt, idx) => {
+        const x = getX(idx);
+        const y = getY(pt.ema);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.lineTo(getX(series.length - 1), padTop + plotH);
+      ctx.lineTo(getX(0), padTop + plotH);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+      grad.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
+      grad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Draw smooth 7-day EMA trend line
+      ctx.beginPath();
+      series.forEach((pt, idx) => {
+        const x = getX(idx);
+        const y = getY(pt.ema);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Draw dashed connector for raw weights & raw weight dots
+      series.forEach((pt, idx) => {
+        if (pt.raw === null) return;
+        const x = getX(idx);
+        const y = getY(pt.raw);
+
+        ctx.beginPath();
+        ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = pt.date === selectedDate ? '#10b981' : (isDark ? '#cbd5e1' : '#475569');
+        ctx.fill();
+      });
+    }
+
+    function loadDemoWeightData() {
+      const todayParts = getLocalDateString().split('-').map(Number);
+      const baseDate = new Date(todayParts[0], todayParts[1] - 1, todayParts[2]);
+      let simulatedWeight = 74.8;
+
+      for (let i = 20; i >= 0; i--) {
+        const d = new Date(baseDate);
+        d.setDate(d.getDate() - i);
+        const dStr = getLocalDateString(d);
+
+        // Realistic downward trend (-0.045 kg/day) + water fluctuation noise
+        const waterNoise = (Math.sin(i * 1.7) * 0.35) + ((Math.random() - 0.5) * 0.25);
+        simulatedWeight -= 0.045;
+        appState.weights[dStr] = Math.round((simulatedWeight + waterNoise) * 10) / 10;
+      }
+
+      saveState();
+      renderAll();
+      showToast('Демо-данные веса за 21 день загружены!', '📈');
+    }
+
+    /********************************************************************
+     * 8. MODALS, SETTINGS, PRESETS & JSON BACKUP
+     ********************************************************************/
+    function openModal(modalId) {
+      if (modalId === 'settingsModal') {
+        document.getElementById('settingsGoalInput').value = appState.settings.dailyGoal;
+        document.getElementById('settingsExerciseToggle').checked = appState.settings.includeExerciseInBudget;
+        document.getElementById('settingsShortcutInput').value = appState.settings.shortcutName || 'HealthSync';
+        resetConfirmPending = false;
+        const resetBtn = document.getElementById('resetDataBtn');
+        resetBtn.textContent = '🗑️ Очистить все данные приложения';
+      } else if (modalId === 'syncModal') {
+        document.getElementById('shortcutNamePreview').textContent = appState.settings.shortcutName || 'HealthSync';
+        const baseUrl = window.location.origin + window.location.pathname;
+        document.getElementById('urlTemplateBox').textContent = `${baseUrl}?weight=73.4&active_kcal=520`;
+      } else if (modalId === 'presetsModal') {
+        renderPresetsModalList();
+      }
+
+      const modal = document.getElementById(modalId);
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveSettingsFromModal() {
+      const goalVal = parseInt(document.getElementById('settingsGoalInput').value, 10);
+      const includeEx = document.getElementById('settingsExerciseToggle').checked;
+      const shortcutName = document.getElementById('settingsShortcutInput').value.trim() || 'HealthSync';
+
+      if (!isNaN(goalVal) && goalVal >= 500 && goalVal <= 15000) {
+        appState.settings.dailyGoal = goalVal;
+      }
+      appState.settings.includeExerciseInBudget = includeEx;
+      appState.settings.shortcutName = shortcutName;
+
+      saveState();
+      renderAll();
+      closeModal('settingsModal');
+      showToast('Настройки сохранены', '✅');
+    }
+
+    function renderPresetsModalList() {
+      const container = document.getElementById('presetsModalList');
+      if (appState.presets.length === 0) {
+        container.innerHTML = `<div class="py-4 text-center text-slate-400">Список пуст</div>`;
+        return;
+      }
+      container.innerHTML = appState.presets.map(p => `
+        <div class="py-2.5 flex items-center justify-between">
+          <div>
+            <span class="font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(p.name)}</span>
+            <span class="ml-2 font-mono text-xs ${p.kcal < 0 ? 'text-orange-500' : 'text-emerald-500'}">${p.kcal > 0 ? '+' : ''}${p.kcal} ккал</span>
+          </div>
+          <button onclick="deletePreset('${p.id}')" class="text-slate-400 hover:text-red-500 p-1">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function addCustomPreset(e) {
+      e.preventDefault();
+      const nameEl = document.getElementById('newPresetName');
+      const kcalEl = document.getElementById('newPresetKcal');
+      const name = nameEl.value.trim();
+      const kcal = parseInt(kcalEl.value, 10);
+
+      if (!name || isNaN(kcal) || kcal === 0) return;
+
+      appState.presets.push({
+        id: 'p_' + Date.now(),
+        name,
+        kcal,
+        type: kcal < 0 ? 'workout' : 'food'
+      });
+
+      nameEl.value = '';
+      kcalEl.value = '';
+      saveState();
+      renderPresetsModalList();
+      renderQuickChips();
+      showToast(`Чипс «${name}» добавлен`, '🍱');
+    }
+
+    function deletePreset(id) {
+      appState.presets = appState.presets.filter(p => p.id !== id);
+      saveState();
+      renderPresetsModalList();
+      renderQuickChips();
+    }
+
+    function copyTextFallback(text, successMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg, '📋');
+      } catch (err) {
+        showToast('Не удалось скопировать', '⚠️');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function copyUrlTemplate() {
+      const text = document.getElementById('urlTemplateBox').textContent.trim();
+      copyTextFallback(text, 'Шаблон URL скопирован в буфер обмена');
+    }
+
+    function exportDataJson() {
+      const dataStr = JSON.stringify(appState, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kcal-lite-backup-${getLocalDateString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Файл бэкапа JSON скачан', '⬇️');
+    }
+
+    function copyDataJsonToClipboard() {
+      const dataStr = JSON.stringify(appState);
+      copyTextFallback(dataStr, 'JSON-бэкап скопирован в буфер обмена');
+    }
+
+    function importDataJsonFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (imported && typeof imported === 'object') {
+            appState = {
+              settings: { ...appState.settings, ...(imported.settings || {}) },
+              presets: Array.isArray(imported.presets) ? imported.presets : [...DEFAULT_PRESETS],
+              days: imported.days || {},
+              weights: imported.weights || {}
+            };
+            saveState();
+            renderAll();
+            closeModal('settingsModal');
+            showToast('База данных успешно восстановлена из JSON!', '🎉');
+          }
+        } catch (err) {
+          showToast('Ошибка: некорректный файл JSON', '⚠️');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function requestResetData() {
+      const btn = document.getElementById('resetDataBtn');
+      if (!resetConfirmPending) {
+        resetConfirmPending = true;
+        btn.textContent = '⚠️ Нажмите ещё раз для полного удаления всех данных';
+        btn.className = 'w-full py-2.5 rounded-xl bg-red-600 text-white font-bold text-xs transition';
+        return;
+      }
+
+      localStorage.removeItem(STORAGE_KEY);
+      appState.days = {};
+      appState.weights = {};
+      appState.presets = [...DEFAULT_PRESETS];
+      resetConfirmPending = false;
+      saveState();
+      renderAll();
+      closeModal('settingsModal');
+      showToast('Все данные очищены', '🗑️');
+    }
+
+    /********************************************************************
+     * 9. THEME, TOAST & UTILITIES
+     ********************************************************************/
+    function applyTheme(theme) {
+      const root = document.documentElement;
+      const icon = document.getElementById('themeIcon');
+      if (theme === 'light') {
+        root.classList.remove('dark');
+        if (icon) icon.textContent = '☀️';
+      } else {
+        root.classList.add('dark');
+        if (icon) icon.textContent = '🌙';
+      }
+    }
+
+    function toggleTheme() {
+      appState.settings.theme = appState.settings.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(appState.settings.theme);
+      saveState();
+      renderWeightSection();
+    }
+
+    let toastTimer = null;
+    function showToast(message, icon = '✅') {
+      const container = document.getElementById('toastContainer');
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastMessage').textContent = message;
+      document.getElementById('toastIcon').textContent = icon;
+
+      container.classList.remove('hidden');
+      box.classList.remove('toast-enter');
+      void box.offsetWidth; // reflow
+      box.classList.add('toast-enter');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(hideToast, 3600);
+    }
+
+    function hideToast() {
+      document.getElementById('toastContainer').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function pluralizeRu(n, one, few, many) {
+      const abs = Math.abs(n) % 100;
+      const n1 = abs % 10;
+      if (abs > 10 && abs < 20) return many;
+      if (n1 > 1 && n1 < 5) return few;
+      if (n1 === 1) return one;
+      return many;
+    }
+
+    function renderAll() {
+      renderDateHeader();
+      renderHeroSummary();
+      renderQuickChips();
+      renderDailyLog();
+      renderWeightSection();
+    }
+
+    // Initialize PWA & Resize Observer
+    window.addEventListener('resize', () => {
+      renderWeightSection();
+    });
+
+    window.onload = function() {
+      loadState();
+      renderAll();
+      // Check if opened via Apple Shortcuts URL Bridge (?weight=...&active_kcal=...)
+      processUrlQueryParameters(window.location.search);
+    };
+  </script>
+</body>
+</html>
