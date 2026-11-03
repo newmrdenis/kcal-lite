@@ -231,7 +231,7 @@
               <div class="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
                 <span>Bonus</span>
               </div>
-              <div id="statBurned" class="text-sm font-bold font-mono text-red-500 mt-0.5">0</div>
+              <div id="statBurned" class="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
             </div>
           </div>
 
@@ -349,6 +349,24 @@
       <!-- Entries List -->
       <div id="dailyLogList" class="divide-y divide-slate-100 dark:divide-slate-800/80">
         <!-- Populated by JS -->
+      </div>
+    </section>
+
+
+    <section id="weeklyOverview" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 space-y-4">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">&#1058;&#1077;&#1082;&#1091;&#1097;&#1072;&#1103; &#1085;&#1077;&#1076;&#1077;&#1083;&#1103;</h2>
+        <span id="weekDateRange" class="text-xs text-slate-500 dark:text-slate-400"></span>
+      </div>
+      <div id="weekDayRings" class="grid grid-cols-7 gap-1"></div>
+      <div class="flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+        <div id="weekTotalRing" class="w-28 h-28 shrink-0"></div>
+        <div class="min-w-0 space-y-1">
+          <div class="text-sm font-semibold">&#1051;&#1080;&#1084;&#1080;&#1090; &#1085;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1102;</div>
+          <div id="weekTotals" class="text-xs font-mono text-slate-500 dark:text-slate-400"></div>
+          <div id="weekRemaining" class="text-sm font-semibold"></div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">&#1051;&#1080;&#1084;&#1080;&#1090; &#1079;&#1072; 7 &#1076;&#1085;&#1077;&#1081; &#1089; &#1073;&#1086;&#1085;&#1091;&#1089;&#1072;&#1084;&#1080;</div>
+        </div>
       </div>
     </section>
 
@@ -1005,41 +1023,84 @@
       );
     }
 
-    function renderHeroSummary() {
-      const dayRec = ensureDayRecord(selectedDate);
-      const baseGoal = Number(appState.settings.dailyGoal) || 1900;
-
+    function getDayBudget(date) {
+      const day = appState.days[date] || {};
       let eatenKcal = 0;
       let manualWorkoutKcal = 0;
-
-      for (const entry of dayRec.entries) {
-        if (entry.type === 'workout') {
-          manualWorkoutKcal += Number(entry.kcal) || 0;
-        } else {
-          eatenKcal += Number(entry.kcal) || 0;
-        }
+      for (const entry of day.entries || []) {
+        if (entry.type === 'workout') manualWorkoutKcal += Number(entry.kcal) || 0;
+        else eatenKcal += Number(entry.kcal) || 0;
       }
-
-      const syncedBurned = Number(dayRec.healthSyncKcal) || 0;
+      const syncedBurned = Number(day.healthSyncKcal) || 0;
       const exerciseBonus = Math.round((syncedBurned + manualWorkoutKcal) * 0.5);
+      const effectiveBudget = (Number(appState.settings.dailyGoal) || 1900)
+        + (appState.settings.includeExerciseInBudget ? exerciseBonus : 0);
+      return { eatenKcal, manualWorkoutKcal, syncedBurned, exerciseBonus, effectiveBudget };
+    }
 
+    function getBudgetColor(ratio) {
+      const redProgress = Math.min(1, Math.max(0, (ratio - 0.9) / 0.1));
+      const start = ratio <= 0.9 ? [16, 185, 129] : [100, 116, 139];
+      const end = ratio <= 0.9 ? [100, 116, 139] : [239, 68, 68];
+      const blend = ratio <= 0.9 ? Math.max(0, ratio / 0.9) : redProgress;
+      const color = start.map((value, index) => Math.round(value + (end[index] - value) * blend));
+      return { redProgress, ringColor: `rgb(${color.join(', ')})` };
+    }
+
+    function getCurrentWeek(today = new Date()) {
+      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+      return Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(monday);
+        day.setDate(day.getDate() + index);
+        return { date: getLocalDateString(day), day, ...getDayBudget(getLocalDateString(day)) };
+      });
+    }
+
+    function budgetRingMarkup(eaten, budget, label, empty = false) {
+      const ratio = Math.max(0, eaten / budget);
+      const { ringColor } = getBudgetColor(ratio);
+      const circumference = 2 * Math.PI * 40;
+      return `<svg viewBox="0 0 100 100" class="block w-full aspect-square" role="img" aria-label="${escapeHtml(label)}">
+        <circle cx="50" cy="50" r="40" fill="none" class="text-slate-200 dark:text-slate-700" stroke="currentColor" stroke-width="7" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke="${ringColor}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference * (1 - Math.min(ratio, 1))}" transform="rotate(-90 50 50)" />
+        <text x="50" y="54" text-anchor="middle" class="fill-slate-600 dark:fill-slate-300" font-size="17" font-family="monospace">${empty ? '--' : Math.round(ratio * 100) + '%'}</text>
+      </svg>`;
+    }
+
+    function renderWeeklyOverview() {
+      const week = getCurrentWeek();
+      const today = getLocalDateString();
+      const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      document.getElementById('weekDateRange').textContent = `${formatDate(week[0].day)} - ${formatDate(week[6].day)}`;
+      document.getElementById('weekDayRings').innerHTML = week.map(day => {
+        const future = day.date > today;
+        const hasData = Boolean(appState.days[day.date]?.entries?.length || appState.days[day.date]?.healthSyncTime);
+        const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} kcal`;
+        return `<button type="button" onclick="onDatePickerChange('${day.date}')" aria-label="${escapeHtml(label)}" aria-pressed="${selectedDate === day.date}" class="min-w-0 rounded-xl py-1 ${selectedDate === day.date ? 'bg-slate-200 dark:bg-slate-700' : ''} ${future ? 'opacity-40' : ''}">
+          <span class="block text-[10px] text-slate-500 dark:text-slate-400">${day.day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
+          ${budgetRingMarkup(day.eatenKcal, day.effectiveBudget, label, !hasData)}
+          <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">${day.day.getDate()}</span>
+        </button>`;
+      }).join('');
+      const eaten = week.reduce((sum, day) => sum + day.eatenKcal, 0);
+      const budget = week.reduce((sum, day) => sum + day.effectiveBudget, 0);
+      document.getElementById('weekTotalRing').innerHTML = budgetRingMarkup(eaten, budget, `Week: ${eaten} / ${budget} kcal`);
+      document.getElementById('weekTotals').textContent = `${eaten} / ${budget} kcal`;
+      document.getElementById('weekRemaining').textContent = `${budget >= eaten ? '\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c' : '\u041f\u0435\u0440\u0435\u0431\u043e\u0440'}: ${Math.abs(budget - eaten)} kcal`;
+    }
+
+    function renderHeroSummary() {
+      const { eatenKcal, syncedBurned, manualWorkoutKcal, exerciseBonus, effectiveBudget } = getDayBudget(selectedDate);
       const includeExercise = appState.settings.includeExerciseInBudget;
-      const effectiveBudget = includeExercise ? baseGoal + exerciseBonus : baseGoal;
       const remaining = effectiveBudget - eatenKcal;
       // Use the budget including the enabled activity bonus.
       const budgetLevel = remaining >= 0 ? 'normal'
         : eatenKcal > effectiveBudget * 1.10 ? 'danger' : 'warning';
       document.body.dataset.budgetLevel = budgetLevel;
       const budgetRatio = Math.max(0, eatenKcal / effectiveBudget);
-      const redProgress = Math.min(1, Math.max(0, (budgetRatio - 0.9) / 0.2));
-      document.body.style.setProperty('--budget-red', `${(redProgress * 24).toFixed(2)}%`);
-      const stops = [[16, 185, 129], [100, 116, 139], [239, 68, 68]];
-      const segment = Math.min(1, budgetRatio / 0.9);
-      const redSegment = redProgress;
-      const start = budgetRatio <= 0.9 ? stops[0] : stops[1];
-      const end = budgetRatio <= 0.9 ? stops[1] : stops[2];
-      const blend = budgetRatio <= 0.9 ? segment : redSegment;
-      const ringColor = start.map((value, index) => Math.round(value + (end[index] - value) * blend));
+      const { redProgress, ringColor } = getBudgetColor(budgetRatio);
+      document.body.style.setProperty('--budget-red', `${(redProgress * 100).toFixed(2)}%`);
 
       // Update numbers
       document.getElementById('statEaten').textContent = eatenKcal;
@@ -1063,7 +1124,7 @@
       const ratio = effectiveBudget > 0 ? Math.min(eatenKcal / effectiveBudget, 1) : 0;
       const offset = circumference - ratio * circumference;
       circle.style.strokeDashoffset = offset.toFixed(2);
-      circle.style.stroke = `rgb(${ringColor.join(', ')})`;
+      circle.style.stroke = ringColor;
 
       if (budgetLevel === 'normal') {
         remLabel.textContent = 'Осталось';
@@ -1393,6 +1454,7 @@
       renderHeroSummary();
       renderQuickChips();
       renderDailyLog();
+      renderWeeklyOverview();
     }
 
     /********************************************************************
