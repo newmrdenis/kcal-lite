@@ -28,7 +28,7 @@
               cardLight: '#ffffff',
               border: '#1e293b',
               accent: '#10b981',
-              orange: '#f97316',
+              red: '#ef4444',
               blue: '#3b82f6',
               danger: '#ef4444'
             }
@@ -53,6 +53,46 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       overscroll-behavior-y: none;
     }
+    :root {
+      --viewport-height: 100vh;
+      --viewport-top: 0px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    #appShell {
+      position: fixed;
+      top: calc(var(--viewport-top) + var(--safe-top));
+      left: 0;
+      right: 0;
+      height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-top: 12px;
+      padding-bottom: 32px;
+      padding-left: max(14px, env(safe-area-inset-left, 0px));
+      padding-right: max(14px, env(safe-area-inset-right, 0px));
+      scroll-padding-block: 28px 24px;
+    }
+    [id$="Modal"] {
+      top: var(--viewport-top);
+      bottom: auto;
+      height: var(--viewport-height, 100vh);
+      padding-top: calc(var(--safe-top) + 16px);
+      padding-bottom: calc(var(--safe-bottom) + 16px);
+    }
+    [id$="Modal"] > div {
+      max-height: 100%;
+    }
+    @media (pointer: coarse) {
+      input:not([type="checkbox"]):not([type="file"]), textarea, select {
+        font-size: 16px !important;
+      }
+    }
+
     /* Hide scrollbars for horizontal chip bar */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -76,39 +116,20 @@
       animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    /* The selected day's calorie budget determines the ambient app color.
-       warning: >100% and <=110%; danger: >110% of effective daily budget. */
-    body, #calorieHero, #topNavBar, #statEaten {
-      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+    /* Increase the red tint continuously as the calorie budget fills up. */
+    body, #appShell > section, #topNavBar {
+      transition: background-color 0.3s ease, border-color 0.3s ease;
     }
-    body[data-budget-level="warning"] { background-color: #fff4e8; }
-    .dark body[data-budget-level="warning"] { background-color: #1c1614; }
-    body[data-budget-level="danger"] { background-color: #ffe8e8; }
-    .dark body[data-budget-level="danger"] { background-color: #2b1118; }
-
-    body[data-budget-level="warning"] #calorieHero {
-      background-color: #fff0dc; border-color: #f97316;
-      box-shadow: 0 0 0 1px rgba(249,115,22,.10), 0 6px 28px rgba(249,115,22,.12);
+    body { background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #f1f5f9); }
+    .dark body { background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #090d16); }
+    #appShell > section, #topNavBar {
+      background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #ffffff);
     }
-    .dark body[data-budget-level="warning"] #calorieHero { background-color: #2d211b; }
-    body[data-budget-level="danger"] #calorieHero {
-      background-color: #ffe0e0; border-color: #ff3030;
-      box-shadow: 0 0 0 1px rgba(255,48,48,.14), 0 6px 30px rgba(255,48,48,.20);
+    .dark #appShell > section, .dark #topNavBar {
+      background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #131b2e);
     }
-    .dark body[data-budget-level="danger"] #calorieHero { background-color: #451a23; }
-
-    body[data-budget-level="warning"] #topNavBar { border-color: rgba(249,115,22,.50); }
-    body[data-budget-level="danger"] #topNavBar { border-color: rgba(255,48,48,.65); }
-    body[data-budget-level="warning"] #statEaten,
-    body[data-budget-level="warning"] #remainingLabel { color: #ea580c; }
-    body[data-budget-level="danger"] #statEaten,
-    body[data-budget-level="danger"] #remainingLabel { color: #ff3030; }
-    body[data-budget-level="warning"] #omniboxForm button[type="submit"],
-    body[data-budget-level="warning"] #splitInputForm button[data-type="food"] { background-color: #f97316; }
-    body[data-budget-level="danger"] #omniboxForm button[type="submit"],
-    body[data-budget-level="danger"] #splitInputForm button[data-type="food"] { background-color: #ef202f; }
-    body[data-budget-level="warning"] #toastBox { border-color: rgba(249,115,22,.60); }
-    body[data-budget-level="danger"] #toastBox { border-color: rgba(255,48,48,.60); }
+    body[data-budget-level="warning"] #remainingLabel,
+    body[data-budget-level="danger"] #remainingLabel { color: #ef4444; }
 
     @media (prefers-reduced-motion: reduce) {
       .toast-enter { animation: none; }
@@ -120,7 +141,7 @@
 <body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 min-h-screen pb-24 transition-colors duration-200 selection:bg-emerald-500 selection:text-white">
 
   <!-- Main App Wrapper (Mobile-first max-w-md centered) -->
-  <div class="max-w-md mx-auto px-3.5 pt-3 sm:pt-5 space-y-4">
+  <div id="appShell" class="max-w-md mx-auto space-y-4">
 
     <p id="actionStatus" role="status" aria-live="polite" class="text-xs text-slate-500 dark:text-slate-400 empty:hidden"></p>
 
@@ -198,26 +219,19 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-3 gap-2 pt-0.5">
-            <!-- Base Goal -->
-            <div onclick="openModal('settingsModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-slate-400 transition">
-              <div class="text-[10px] text-slate-400 font-medium">Норма</div>
-              <div id="statBaseGoal" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">1900</div>
-            </div>
-
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
             <!-- Eaten -->
             <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
               <div class="text-[10px] text-slate-400 font-medium">Съедено</div>
-              <div id="statEaten" class="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">0</div>
+              <div id="statEaten" class="text-sm font-bold font-mono text-slate-500 dark:text-slate-400 mt-0.5">0</div>
             </div>
 
             <!-- Calorie budget bonus -->
-            <div onclick="openModal('syncModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-orange-500/40 transition">
+            <div onclick="openModal('syncModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-red-500/40 transition">
               <div class="text-[10px] text-slate-400 font-medium flex items-center gap-0.5">
                 <span>Bonus</span>
-                <span class="text-[9px]">🔥</span>
               </div>
-              <div id="statBurned" class="text-sm font-bold font-mono text-orange-500 mt-0.5">0</div>
+              <div id="statBurned" class="text-sm font-bold font-mono text-red-500 mt-0.5">0</div>
             </div>
           </div>
 
@@ -283,7 +297,7 @@
           <button type="submit" data-type="food" onclick="this.form.dataset.submitType='food'" class="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs transition">
             + Добавить еду
           </button>
-          <button type="submit" data-type="workout" onclick="this.form.dataset.submitType='workout'" class="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs transition">
+          <button type="submit" data-type="workout" onclick="this.form.dataset.submitType='workout'" class="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-xs transition">
             🔥 Тренировка (-ккал)
           </button>
         </div>
@@ -313,9 +327,9 @@
       </div>
 
       <!-- Synced Apple Health / Garmin Active Energy Banner (shown when healthSyncKcal > 0) -->
-      <div id="syncedActivityCard" class="hidden items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-orange-500/10 to-blue-500/10 border border-orange-500/25">
+      <div id="syncedActivityCard" class="hidden items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-red-500/10 to-blue-500/10 border border-red-500/25">
         <div class="flex items-center gap-2.5">
-          <span class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center text-sm font-bold">⌚</span>
+          <span class="w-8 h-8 rounded-xl bg-red-500/20 text-red-500 flex items-center justify-center text-sm font-bold">⌚</span>
           <div>
             <div class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
               <span>Apple Health / Garmin</span>
@@ -325,7 +339,7 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span id="syncedActivityKcal" class="text-sm font-extrabold font-mono text-orange-500">-0 ккал</span>
+          <span id="syncedActivityKcal" class="text-sm font-extrabold font-mono text-red-500">-0 ккал</span>
           <button onclick="clearSyncedActivityForDay()" title="Сбросить синхронизированную активность" class="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800/50 transition text-xs">
             ✕
           </button>
@@ -695,7 +709,7 @@
         badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-semibold';
         badge.textContent = `🍱 Еда: «${parsed.name}» (+${parsed.kcal} ккал)`;
       } else if (parsed.kind === 'workout') {
-        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 font-semibold';
+        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-500 font-semibold';
         badge.textContent = `🔥 Спорт: «${parsed.name}» (-${parsed.kcal} ккал)`;
 
       }
@@ -1012,14 +1026,22 @@
       const includeExercise = appState.settings.includeExerciseInBudget;
       const effectiveBudget = includeExercise ? baseGoal + exerciseBonus : baseGoal;
       const remaining = effectiveBudget - eatenKcal;
-      // Base the alert on the ACTUAL budget (including workouts when enabled).
-      // Exactly +10% is still orange; only >+10% is bright red.
+      // Use the budget including the enabled activity bonus.
       const budgetLevel = remaining >= 0 ? 'normal'
         : eatenKcal > effectiveBudget * 1.10 ? 'danger' : 'warning';
       document.body.dataset.budgetLevel = budgetLevel;
+      const budgetRatio = Math.max(0, eatenKcal / effectiveBudget);
+      const redProgress = Math.min(1, Math.max(0, (budgetRatio - 0.9) / 0.2));
+      document.body.style.setProperty('--budget-red', `${(redProgress * 24).toFixed(2)}%`);
+      const stops = [[16, 185, 129], [100, 116, 139], [239, 68, 68]];
+      const segment = Math.min(1, budgetRatio / 0.9);
+      const redSegment = redProgress;
+      const start = budgetRatio <= 0.9 ? stops[0] : stops[1];
+      const end = budgetRatio <= 0.9 ? stops[1] : stops[2];
+      const blend = budgetRatio <= 0.9 ? segment : redSegment;
+      const ringColor = start.map((value, index) => Math.round(value + (end[index] - value) * blend));
 
       // Update numbers
-      document.getElementById('statBaseGoal').textContent = baseGoal;
       document.getElementById('statEaten').textContent = eatenKcal;
       document.getElementById('statBurned').textContent = includeExercise ? exerciseBonus : 0;
       document.getElementById('statBurned').title = `Active Energy: ${syncedBurned} kcal; manual workouts: ${manualWorkoutKcal} kcal; 50% bonus: ${exerciseBonus} kcal`;
@@ -1041,18 +1063,17 @@
       const ratio = effectiveBudget > 0 ? Math.min(eatenKcal / effectiveBudget, 1) : 0;
       const offset = circumference - ratio * circumference;
       circle.style.strokeDashoffset = offset.toFixed(2);
+      circle.style.stroke = `rgb(${ringColor.join(', ')})`;
 
       if (budgetLevel === 'normal') {
         remLabel.textContent = 'Осталось';
         remValue.textContent = remaining;
         remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white';
-        circle.style.stroke = '#10b981';
       } else {
         remLabel.textContent = budgetLevel === 'danger' ? 'Перебор >10%' : 'Перебор';
         remValue.textContent = `+${Math.abs(remaining)}`;
         remValue.className = 'text-2xl font-extrabold font-mono tracking-tight ' +
-          (budgetLevel === 'danger' ? 'text-red-500' : 'text-orange-500');
-        circle.style.stroke = budgetLevel === 'danger' ? '#ff3030' : '#f97316';
+          'text-red-500';
       }
 
     }
@@ -1063,7 +1084,7 @@
         const isWorkout = p.kcal < 0 || p.type === 'workout';
         const absKcal = Math.abs(p.kcal);
         const colorClasses = isWorkout
-          ? 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/20'
+          ? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/20'
           : 'bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200/80 dark:border-slate-700/70';
 
         const escapedName = p.name.replace(/'/g, "\\'");
@@ -1115,7 +1136,7 @@
       listEl.innerHTML = entries.map(item => {
         const isWorkout = item.type === 'workout';
         const badgeColor = isWorkout
-          ? 'text-orange-500 bg-orange-500/10'
+          ? 'text-red-500 bg-red-500/10'
           : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
         const icon = isWorkout ? '🔥' : '🍽️';
         const sign = isWorkout ? '−' : '+';
@@ -1203,7 +1224,7 @@
         <div class="py-2.5 flex items-center justify-between">
           <div>
             <span class="font-semibold text-slate-800 dark:text-slate-100">${escapeHtml(p.name)}</span>
-            <span class="ml-2 font-mono text-xs ${p.kcal < 0 ? 'text-orange-500' : 'text-emerald-500'}">${p.kcal > 0 ? '+' : ''}${p.kcal} ккал</span>
+            <span class="ml-2 font-mono text-xs ${p.kcal < 0 ? 'text-red-500' : 'text-emerald-500'}">${p.kcal > 0 ? '+' : ''}${p.kcal} ккал</span>
           </div>
           <button onclick="deletePreset('${p.id}')" class="text-slate-400 hover:text-red-500 p-1">✕</button>
         </div>
@@ -1709,9 +1730,48 @@
       scheduleRemoteSync(500);
     }
 
+    function setupMobileViewport() {
+      const viewport = window.visualViewport;
+      let frame = null;
+      function updateViewport() {
+        frame = null;
+        const root = document.documentElement;
+        root.style.setProperty('--viewport-height', `${viewport ? viewport.height : window.innerHeight}px`);
+        root.style.setProperty('--viewport-top', `${viewport ? viewport.offsetTop : 0}px`);
+        const input = document.activeElement;
+        if (!input || !input.matches('input:not([type="checkbox"]):not([type="file"]), textarea, select')) return;
+        const modal = input.closest('[id$="Modal"]');
+        const scroller = modal ? input.closest('.overflow-y-auto') : document.getElementById('appShell');
+        if (!scroller) return;
+        const bounds = scroller.getBoundingClientRect();
+        const safeTop = parseFloat(getComputedStyle(scroller).paddingTop) || 0;
+        const inputBounds = input.getBoundingClientRect();
+        const top = bounds.top + safeTop + 16;
+        const bottom = Math.min(bounds.bottom, (viewport ? viewport.offsetTop + viewport.height : window.innerHeight)) - 24;
+        const form = input.closest('form');
+        const formBottom = form ? form.getBoundingClientRect().bottom : inputBounds.bottom;
+        const targetBottom = form && formBottom - inputBounds.top < bottom - top ? formBottom : inputBounds.bottom;
+        if (inputBounds.top < top) scroller.scrollTop += inputBounds.top - top;
+        else if (targetBottom > bottom) scroller.scrollTop += targetBottom - bottom;
+      }
+      function scheduleUpdate() {
+        if (frame === null) frame = requestAnimationFrame(updateViewport);
+      }
+      viewport?.addEventListener('resize', scheduleUpdate);
+      viewport?.addEventListener('scroll', scheduleUpdate);
+      window.addEventListener('resize', scheduleUpdate);
+      document.addEventListener('focusin', () => {
+        scheduleUpdate();
+        // Run again after the iOS keyboard animation and automatic focus scroll.
+        setTimeout(scheduleUpdate, 350);
+      });
+      updateViewport();
+    }
+
     // Initialize PWA
 
     window.onload = function() {
+      setupMobileViewport();
       loadState();
       restoreSync();
       renderAll();
