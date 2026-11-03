@@ -183,7 +183,7 @@
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
             <span id="remainingLabel" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-400">Осталось</span>
-            <span id="remainingValue" class="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white">2000</span>
+            <span id="remainingValue" class="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white">1900</span>
             <span class="text-[10px] text-slate-400 font-medium">ккал</span>
           </div>
         </div>
@@ -194,7 +194,7 @@
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Баланс дня</span>
             <button onclick="toggleExerciseBudgetMode()" id="budgetModeBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
-              + 80% Health
+              + 50% activity
             </button>
           </div>
 
@@ -202,7 +202,7 @@
             <!-- Base Goal -->
             <div onclick="openModal('settingsModal')" class="cursor-pointer bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50 hover:border-slate-400 transition">
               <div class="text-[10px] text-slate-400 font-medium">Норма</div>
-              <div id="statBaseGoal" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">2000</div>
+              <div id="statBaseGoal" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">1900</div>
             </div>
 
             <!-- Eaten -->
@@ -445,7 +445,7 @@
         <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
           <div class="pr-3">
             <div class="font-bold text-slate-800 dark:text-slate-100">Добавлять калории тренировок к остатку</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Bonus = 0.8 * Active Energy + manual workouts. Rounded to whole kcal. Disabled: no bonus.</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Bonus = 0.5 * (Active Energy + manual workouts). Rounded to whole kcal. Disabled: no bonus.</div>
           </div>
           <input type="checkbox" id="settingsExerciseToggle" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer" />
         </div>
@@ -578,7 +578,7 @@
 
     let appState = {
       settings: {
-        dailyGoal: 2000,
+        dailyGoal: 1900,
         includeExerciseInBudget: true,
         shortcutName: 'HealthSync',
         theme: 'dark'
@@ -993,7 +993,7 @@
 
     function renderHeroSummary() {
       const dayRec = ensureDayRecord(selectedDate);
-      const baseGoal = Number(appState.settings.dailyGoal) || 2000;
+      const baseGoal = Number(appState.settings.dailyGoal) || 1900;
 
       let eatenKcal = 0;
       let manualWorkoutKcal = 0;
@@ -1007,8 +1007,7 @@
       }
 
       const syncedBurned = Number(dayRec.healthSyncKcal) || 0;
-      const healthBonus = Math.round(syncedBurned * 0.8);
-      const exerciseBonus = manualWorkoutKcal + healthBonus;
+      const exerciseBonus = Math.round((syncedBurned + manualWorkoutKcal) * 0.5);
 
       const includeExercise = appState.settings.includeExerciseInBudget;
       const effectiveBudget = includeExercise ? baseGoal + exerciseBonus : baseGoal;
@@ -1023,11 +1022,11 @@
       document.getElementById('statBaseGoal').textContent = baseGoal;
       document.getElementById('statEaten').textContent = eatenKcal;
       document.getElementById('statBurned').textContent = includeExercise ? exerciseBonus : 0;
-      document.getElementById('statBurned').title = `Active Energy: ${syncedBurned} kcal; 80%: ${healthBonus} kcal; manual workouts: ${manualWorkoutKcal} kcal`;
+      document.getElementById('statBurned').title = `Active Energy: ${syncedBurned} kcal; manual workouts: ${manualWorkoutKcal} kcal; 50% bonus: ${exerciseBonus} kcal`;
 
       const badge = document.getElementById('budgetModeBadge');
       if (includeExercise) {
-        badge.textContent = '+ 80% Health';
+        badge.textContent = '+ 50% activity';
         badge.className = 'text-[11px] font-medium px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition';
       } else {
         badge.textContent = 'Без учёта спорта';
