@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Kcal Lite" />
   <meta name="theme-color" content="#090d16" />
-  <title>Kcal Lite — Быстрый трекер калорий и веса</title>
+  <title>Kcal Lite — Быстрый трекер калорий</title>
   <link rel="manifest" href="./manifest.webmanifest" />
 
   <!-- Tailwind CSS -->
@@ -221,16 +221,7 @@
             </div>
           </div>
 
-          <!-- Quick Weight Pill for Current Day -->
-          <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 text-xs">
-            <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-              <span>⚖️ Вес за день:</span>
-              <strong id="heroWeightText" class="font-mono text-slate-800 dark:text-slate-200">— кг</strong>
-            </span>
-            <button onclick="focusWeightInput()" class="text-blue-600 dark:text-blue-400 hover:underline font-medium text-[11px]">
-              Изменить →
-            </button>
-          </div>
+
         </div>
       </div>
     </section>
@@ -254,7 +245,7 @@
             type="text"
             id="omniboxInput"
             autocomplete="off"
-            placeholder="Бэнто 550, 320, Теннис -400, Вес 73.4..."
+            placeholder="Бэнто 550, 320, Теннис -400..."
             oninput="updateLiveParsePreview(this.value)"
             class="w-full pl-3.5 pr-9 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
           />
@@ -298,7 +289,7 @@
         </div>
       </form>
 
-      <!-- Instant Anonymous Kcal Buttons + Quick Chips -->
+      <!-- User quick chips -->
       <div class="space-y-2 pt-0.5">
         <div class="flex items-center justify-between text-[11px] text-slate-400">
           <span>Частые и быстрые в 1 тап:</span>
@@ -347,78 +338,6 @@
       </div>
     </section>
 
-    <!-- WEIGHT TRACKER & 7-DAY EMA TREND CHART -->
-    <section id="weightSection" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 shadow-sm space-y-3.5">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            📈 Вес и сглаженный тренд (EMA 7д)
-          </h2>
-        </div>
-        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-[11px] font-semibold">
-          <button onclick="setWeightChartRange(14)" id="rangeBtn14" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition">14д</button>
-          <button onclick="setWeightChartRange(30)" id="rangeBtn30" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">30д</button>
-          <button onclick="setWeightChartRange(90)" id="rangeBtn90" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">90д</button>
-          <button onclick="setWeightChartRange(0)" id="rangeBtn0" class="px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition">All</button>
-        </div>
-      </div>
-
-      <!-- Weight KPI Summary Row -->
-      <div class="grid grid-cols-3 gap-2">
-        <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
-          <div class="text-[10px] text-slate-400 font-medium">Текущий вес</div>
-          <div id="kpiRawWeight" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">—</div>
-        </div>
-        <div class="bg-blue-500/10 p-2.5 rounded-2xl border border-blue-500/20">
-          <div class="text-[10px] text-blue-500 dark:text-blue-400 font-medium">Тренд EMA</div>
-          <div id="kpiEmaWeight" class="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5">—</div>
-        </div>
-        <div class="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/50">
-          <div class="text-[10px] text-slate-400 font-medium">За 7 дней</div>
-          <div id="kpiWeeklyDelta" class="text-sm font-bold font-mono text-slate-800 dark:text-slate-100 mt-0.5">—</div>
-        </div>
-      </div>
-
-      <!-- Fast Weight Input Form for Selected Date -->
-      <form onsubmit="handleDirectWeightSubmit(event)" class="flex items-center gap-2">
-        <div class="relative flex-1">
-          <input
-            type="number"
-            step="0.1"
-            min="25"
-            max="300"
-            id="directWeightInput"
-            placeholder="Вес за выбранный день (кг), напр. 73.4"
-            class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <button type="submit" class="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold text-xs transition flex-shrink-0">
-          Сохранить вес
-        </button>
-      </form>
-
-      <details class="text-xs text-slate-500 dark:text-slate-400">
-        <summary class="cursor-pointer py-2">Import weight history from Apple Health</summary>
-        <p class="my-2">Import a CSV file with one measurement per line: YYYY-MM-DD,kg. Export oldest first; the last measurement for each day wins. Existing dates are updated; other data is kept.</p>
-        <input type="file" accept=".csv,.txt,text/csv,text/plain" onchange="importWeightHistoryFile(event)" aria-label="Import weight history CSV" class="block w-full text-xs my-2" />
-        <p id="weightImportStatus" role="status" aria-live="polite"></p>
-      </details>
-
-      <!-- Interactive Canvas Chart Wrapper -->
-      <div class="relative w-full h-52 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200/60 dark:border-slate-800 p-2">
-        <canvas id="weightChartCanvas" class="w-full h-full block"></canvas>
-        <div id="weightChartEmptyState" class="hidden absolute inset-0 flex items-center justify-center text-center p-4 text-xs text-slate-400">
-          Add weight measurements on at least two days.
-        </div>
-      </div>
-
-      <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
-        <div class="flex items-center gap-3">
-          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span> Весы (сырой)</span>
-          <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-blue-500 inline-block"></span> Сглаженный тренд EMA</span>
-        </div>
-      </div>
-    </section>
 
   </div>
 
@@ -472,14 +391,13 @@
         <!-- URL Scheme Documentation for iOS Shortcuts -->
         <div class="space-y-2">
           <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 break-all select-all border border-slate-200 dark:border-slate-800" id="urlTemplateBox">
-            https://ВАШ-АДРЕС/?weight=73.4&active_kcal=520
+            https://ВАШ-АДРЕС/?active_kcal=520
           </div>
           <button onclick="copyUrlTemplate()" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-semibold transition">
             📋 Скопировать шаблон URL
           </button>
 
           <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-            <li><code class="text-slate-700 dark:text-slate-200">weight=73.4</code> — записывает или обновляет вес за выбранный день.</li>
             <li><code class="text-slate-700 dark:text-slate-200">active_kcal=520</code> — обновляет сожжённые калории Garmin / Apple Health за день (не создаёт дубликатов при повторной синхронизации).</li>
             <li><code class="text-slate-700 dark:text-slate-200">food=Онигири&kcal=180</code> — мгновенно добавляет продукт в дневник.</li>
             <li><code class="text-slate-700 dark:text-slate-200">date=YYYY-MM-DD</code> — опциональная дата (по умолчанию сегодня).</li>
@@ -491,9 +409,8 @@
           <div class="font-bold text-slate-900 dark:text-white">Инструкция для приложения «Команды» (iOS):</div>
           <ol class="list-decimal pl-4 space-y-1 text-[11px]">
             <li>Создайте команду с именем <strong>HealthSync</strong>.</li>
-            <li>Добавьте действие <strong>«Найти объекты Здоровья»</strong> → Тип: <em>Вес</em>, Сортировка: <em>Дата начала (По убыванию)</em>, Лимит: <em>1</em>.</li>
             <li>Добавьте действие <strong>«Найти объекты Здоровья»</strong> → Тип: <em>Активная энергия</em>, Дата начала: <em>Сегодня</em> → <strong>«Посчитать» (Сумма)</strong>.</li>
-            <li>Добавьте действие <strong>«Открыть URL»</strong> и подставьте переменные Веса и Активной энергии в строку <code class="font-mono">?weight=...&active_kcal=...</code>.</li>
+            <li>Добавьте действие <strong>«Открыть URL»</strong> и подставьте переменную Активной энергии в строку <code class="font-mono">?active_kcal=...</code>.</li>
           </ol>
         </div>
       </div>
@@ -641,14 +558,11 @@
      ********************************************************************/
     const STORAGE_KEY = 'kcal_lite_pwa_v1';
 
-    const DEFAULT_PRESETS = [
-      { id: 'p1', name: 'Онигири лосось', kcal: 180, type: 'food' },
-      { id: 'p2', name: 'Бэнто комбини', kcal: 580, type: 'food' },
-      { id: 'p3', name: 'Кофе латте', kcal: 110, type: 'food' },
-      { id: 'p4', name: 'Протеин', kcal: 120, type: 'food' },
-      { id: 'p5', name: 'Рамэн', kcal: 750, type: 'food' },
-      { id: 'p6', name: 'Зал / Кардио', kcal: -350, type: 'workout' }
-    ];
+    const DEFAULT_PRESETS = [];
+
+    function userPresets(presets) {
+      return Array.isArray(presets) ? presets.filter(p => !/^p[1-6]$/.test(p.id)) : [];
+    }
 
     function getLocalDateString(dateObj = new Date()) {
       const year = dateObj.getFullYear();
@@ -671,13 +585,10 @@
       },
       presets: [...DEFAULT_PRESETS],
       // days: { 'YYYY-MM-DD': { entries: [{id, name, kcal, type, time}], healthSyncKcal: 0, healthSyncTime: null } }
-      days: {},
-      // weights: { 'YYYY-MM-DD': 73.4 }
-      weights: {}
+      days: {}
     };
 
     let selectedDate = getLocalDateString();
-    let weightChartDaysRange = 14;
     let isSplitInputMode = false;
     let resetConfirmPending = false;
 
@@ -688,9 +599,8 @@
           const parsed = JSON.parse(raw);
           appState = {
             settings: { ...appState.settings, ...(parsed.settings || {}) },
-            presets: Array.isArray(parsed.presets) && parsed.presets.length ? parsed.presets : [...DEFAULT_PRESETS],
+            presets: userPresets(parsed.presets),
             days: parsed.days || {},
-            weights: parsed.weights || {}
           };
         }
       } catch (err) {
@@ -717,7 +627,6 @@
     /********************************************************************
      * 2. SMART OMNIBOX REGEX PARSER
      * Supports:
-     * - "Вес 73.4" or "73.4 кг" or "73,4kg" -> Weight entry
      * - "550" -> Quick food entry (+550 kcal)
      * - "-350" -> Quick workout entry (-350 kcal)
      * - "Теннис -450" or "Зал -350 ккал" -> Workout entry ("Теннис", 450 burned)
@@ -726,19 +635,6 @@
     function parseOmniboxString(rawInput) {
       const str = (rawInput || '').trim();
       if (!str) return null;
-
-      // 1. Check explicit Weight pattern: "Вес 73.4", "вес: 73,4", "73.4 кг", "73,4kg"
-      const weightPrefixMatch = str.match(/^(?:вес|weight)\s*[:=]?\s*(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:кг|kg)?$/i);
-      if (weightPrefixMatch) {
-        const w = parseFloat(weightPrefixMatch[1].replace(',', '.'));
-        if (w >= 25 && w <= 300) return { kind: 'weight', weight: w };
-      }
-
-      const weightSuffixMatch = str.match(/^(\d{2,3}(?:[.,]\d{1,2})?)\s*(?:кг|kg)$/i);
-      if (weightSuffixMatch) {
-        const w = parseFloat(weightSuffixMatch[1].replace(',', '.'));
-        if (w >= 25 && w <= 300) return { kind: 'weight', weight: w };
-      }
 
       // 2. Check pure number: "550" or "-350"
       const pureNumMatch = str.match(/^([+-]?\d+)\s*(?:ккал|kcal|кал)?$/i);
@@ -801,9 +697,7 @@
       } else if (parsed.kind === 'workout') {
         badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-500 font-semibold';
         badge.textContent = `🔥 Спорт: «${parsed.name}» (-${parsed.kcal} ккал)`;
-      } else if (parsed.kind === 'weight') {
-        badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-semibold';
-        badge.textContent = `⚖️ Запись веса: ${parsed.weight} кг`;
+
       }
     }
 
@@ -824,10 +718,7 @@
         return;
       }
 
-      if (parsed.kind === 'weight') {
-        logWeightForDate(selectedDate, parsed.weight);
-        showToast(`Вес ${parsed.weight} кг сохранён`, '⚖️');
-      } else if (parsed.kind === 'food') {
+      if (parsed.kind === 'food') {
         addLogEntry(selectedDate, parsed.name, parsed.kcal, 'food');
         showToast(`+${parsed.kcal} ккал (${parsed.name})`, '🍱');
       } else if (parsed.kind === 'workout') {
@@ -885,7 +776,7 @@
 
     /********************************************************************
      * 3. URL PARAMETER BRIDGE FOR APPLE HEALTH & GARMIN
-     * Parses ?weight=73.4&active_kcal=520&food=Онигири&kcal=180&date=YYYY-MM-DD
+     * Parses ?active_kcal=520&food=Онигири&kcal=180&date=YYYY-MM-DD
      ********************************************************************/
     function processUrlQueryParameters(searchString) {
       if (!searchString || searchString.length <= 1) return;
@@ -896,16 +787,6 @@
         : getLocalDateString();
 
       const syncedMessages = [];
-
-      // 1. Parse weight parameter (?weight=73.4 or 73,4)
-      if (params.has('weight')) {
-        const rawW = params.get('weight').replace(',', '.');
-        const weightVal = parseFloat(rawW);
-        if (!isNaN(weightVal) && weightVal >= 25 && weightVal <= 300) {
-          appState.weights[targetDate] = Math.round(weightVal * 10) / 10;
-          syncedMessages.push(`Вес ${appState.weights[targetDate]} кг`);
-        }
-      }
 
       // 2. Parse Apple Health / Garmin active_kcal parameter (&active_kcal=520)
       if (params.has('active_kcal')) {
@@ -956,7 +837,7 @@
     }
 
     /********************************************************************
-     * 4. LOGGING ENTRIES, PRESETS & WEIGHT
+     * 4. LOGGING ENTRIES AND PRESETS
      ********************************************************************/
     function addLogEntry(dateStr, name, kcal, type = 'food') {
       const dayRec = ensureDayRecord(dateStr);
@@ -1038,74 +919,6 @@
       saveState();
       renderAll();
       showToast('Синхронизированная активность сброшена', '🗑️');
-    }
-
-    function parseWeightHistoryCsv(text) {
-      const weights = {};
-      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line || /^date,kg$/i.test(line)) continue;
-        const match = /^(\d{4}-\d{2}-\d{2}),([0-9]+(?:\.[0-9]+)?)$/.exec(line);
-        if (!match) throw new Error(`Line ${i + 1}: expected YYYY-MM-DD,kg (decimal point, no units).`);
-        const date = match[1];
-        const parsedDate = new Date(date + 'T12:00:00Z');
-        const weight = Number(match[2]);
-        if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date || date < '1900-01-01' || date > getLocalDateString()) {
-          throw new Error(`Line ${i + 1}: invalid or future date.`);
-        }
-        if (!Number.isFinite(weight) || weight < 25 || weight > 300) {
-          throw new Error(`Line ${i + 1}: weight must be between 25 and 300 kg.`);
-        }
-        weights[date] = Math.round(weight * 10) / 10;
-      }
-      if (!Object.keys(weights).length) throw new Error('No weight measurements found.');
-      return weights;
-    }
-
-    async function importWeightHistoryFile(event) {
-      const input = event.target;
-      const file = input.files[0];
-      if (!file) return;
-      const status = document.getElementById('weightImportStatus');
-      try {
-        const weights = parseWeightHistoryCsv(await file.text());
-        Object.assign(appState.weights, weights);
-        saveState();
-        renderAll();
-        setWeightChartRange(0);
-        status.textContent = `Imported ${Object.keys(weights).length} days. Weight history merged.`;
-      } catch (error) {
-        status.textContent = `Import failed: ${error.message}`;
-      } finally {
-        input.value = '';
-      }
-    }
-
-    function logWeightForDate(dateStr, weightVal) {
-      const w = Math.round(parseFloat(weightVal) * 10) / 10;
-      if (isNaN(w) || w < 25 || w > 300) return;
-      appState.weights[dateStr] = w;
-      saveState();
-      renderAll();
-    }
-
-    function handleDirectWeightSubmit(e) {
-      e.preventDefault();
-      const input = document.getElementById('directWeightInput');
-      const val = parseFloat(input.value);
-      if (isNaN(val) || val < 25 || val > 300) {
-        showToast('Введите корректный вес (от 25 до 300 кг)', '⚠️');
-        return;
-      }
-      logWeightForDate(selectedDate, val);
-      showToast(`Вес ${val.toFixed(1)} кг сохранён на ${formatShortDateRu(selectedDate)}`, '⚖️');
-    }
-
-    function focusWeightInput() {
-      const el = document.getElementById('directWeightInput');
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => el.focus(), 250);
     }
 
     /********************************************************************
@@ -1243,31 +1056,10 @@
         circle.style.stroke = budgetLevel === 'danger' ? '#ff3030' : '#f97316';
       }
 
-      // Update current day's weight display
-      const dayWeight = appState.weights[selectedDate];
-      const heroWeightText = document.getElementById('heroWeightText');
-      const directWeightInput = document.getElementById('directWeightInput');
-
-      if (dayWeight !== undefined) {
-        heroWeightText.textContent = `${dayWeight.toFixed(1)} кг`;
-        directWeightInput.value = dayWeight;
-      } else {
-        heroWeightText.textContent = '— кг';
-        directWeightInput.value = '';
-      }
     }
 
     function renderQuickChips() {
       const container = document.getElementById('quickChipsContainer');
-      const anonymousButtons = [100, 250, 500].map(val => `
-        <button
-          onclick="addLogEntry('${selectedDate}', 'Быстрый ввод', ${val}, 'food'); showToast('+${val} ккал (Быстрый ввод)', '⚡')"
-          class="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-mono font-bold active:scale-95 transition"
-        >
-          +${val}
-        </button>
-      `).join('');
-
       const presetButtons = appState.presets.map(p => {
         const isWorkout = p.kcal < 0 || p.type === 'workout';
         const absKcal = Math.abs(p.kcal);
@@ -1287,7 +1079,7 @@
         `;
       }).join('');
 
-      container.innerHTML = anonymousButtons + presetButtons;
+      container.innerHTML = presetButtons;
     }
 
     function renderDailyLog() {
@@ -1356,231 +1148,6 @@
     }
 
     /********************************************************************
-     * 7. WEIGHT TRACKER & 7-DAY EMA SMOOTHED TREND CHART (CANVAS)
-     * Formula: EMA_today = Weight_today * k + EMA_yesterday * (1 - k)
-     * where k = 2 / (7 + 1) = 0.25 (standard 7-day EMA smoothing)
-     ********************************************************************/
-    function computeWeightAndEmaSeries() {
-      const allDates = Object.keys(appState.weights).sort();
-      if (allDates.length === 0) return [];
-
-      const k = 2 / (7 + 1); // 0.25 smoothing factor
-      const series = [];
-      let prevEma = null;
-
-      // Walk day-by-day from first recorded weight to last recorded weight (or today)
-      const firstParts = allDates[0].split('-').map(Number);
-      const lastDateStr = allDates[allDates.length - 1] > selectedDate ? allDates[allDates.length - 1] : selectedDate;
-      const lastParts = lastDateStr.split('-').map(Number);
-
-      const cursor = new Date(firstParts[0], firstParts[1] - 1, firstParts[2]);
-      const end = new Date(lastParts[0], lastParts[1] - 1, lastParts[2]);
-
-      while (cursor <= end) {
-        const dStr = getLocalDateString(cursor);
-        const rawW = appState.weights[dStr];
-
-        if (rawW !== undefined) {
-          prevEma = prevEma === null ? rawW : rawW * k + prevEma * (1 - k);
-          series.push({
-            date: dStr,
-            raw: rawW,
-            ema: Math.round(prevEma * 100) / 100
-          });
-        } else if (prevEma !== null) {
-          // Carry EMA forward on unlogged days
-          series.push({
-            date: dStr,
-            raw: null,
-            ema: Math.round(prevEma * 100) / 100
-          });
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
-
-      return series;
-    }
-
-    function setWeightChartRange(days) {
-      weightChartDaysRange = days;
-      [14, 30, 90, 0].forEach(d => {
-        const btn = document.getElementById(`rangeBtn${d}`);
-        if (d === days) {
-          btn.className = 'px-2 py-1 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition';
-        } else {
-          btn.className = 'px-2 py-1 rounded-lg text-slate-500 dark:text-slate-400 transition';
-        }
-      });
-      renderWeightSection();
-    }
-
-    function renderWeightSection() {
-      const fullSeries = computeWeightAndEmaSeries();
-      const loggedPoints = fullSeries.filter(p => p.raw !== null);
-
-      const kpiRaw = document.getElementById('kpiRawWeight');
-      const kpiEma = document.getElementById('kpiEmaWeight');
-      const kpiDelta = document.getElementById('kpiWeeklyDelta');
-      const emptyOverlay = document.getElementById('weightChartEmptyState');
-
-      if (loggedPoints.length === 0) {
-        kpiRaw.textContent = '—';
-        kpiEma.textContent = '—';
-        kpiDelta.textContent = '—';
-        emptyOverlay.classList.remove('hidden');
-        return;
-      }
-
-      const latestLogged = loggedPoints[loggedPoints.length - 1];
-      kpiRaw.textContent = `${latestLogged.raw.toFixed(1)} кг`;
-      kpiEma.textContent = `${latestLogged.ema.toFixed(1)} кг`;
-
-      // Calculate 7-day EMA delta
-      if (fullSeries.length >= 7) {
-        const currentEma = fullSeries[fullSeries.length - 1].ema;
-        const weekAgoEma = fullSeries[Math.max(0, fullSeries.length - 8)].ema;
-        const diff = currentEma - weekAgoEma;
-        const sign = diff > 0 ? '+' : '';
-        kpiDelta.textContent = `${sign}${diff.toFixed(1)} кг`;
-        kpiDelta.className = `text-sm font-bold font-mono mt-0.5 ${
-          diff < -0.05 ? 'text-emerald-500' : diff > 0.05 ? 'text-amber-500' : 'text-slate-700 dark:text-slate-200'
-        }`;
-      } else {
-        kpiDelta.textContent = 'мало дн.';
-      }
-
-      if (loggedPoints.length < 2) {
-        emptyOverlay.classList.remove('hidden');
-        return;
-      } else {
-        emptyOverlay.classList.add('hidden');
-      }
-
-      const sliced = weightChartDaysRange === 0 ? fullSeries : fullSeries.slice(-weightChartDaysRange);
-      drawWeightCanvas(sliced);
-    }
-
-    function drawWeightCanvas(series) {
-      const canvas = document.getElementById('weightChartCanvas');
-      if (!canvas || series.length === 0) return;
-
-      const rect = canvas.parentElement.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const width = Math.max(rect.width - 16, 240);
-      const height = Math.max(rect.height - 16, 160);
-
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, width, height);
-
-      const isDark = document.documentElement.classList.contains('dark');
-      const padLeft = 36;
-      const padRight = 12;
-      const padTop = 14;
-      const padBottom = 24;
-
-      const plotW = width - padLeft - padRight;
-      const plotH = height - padTop - padBottom;
-
-      const values = [];
-      series.forEach(p => {
-        if (p.raw !== null) values.push(p.raw);
-        if (p.ema !== null) values.push(p.ema);
-      });
-
-      let minVal = Math.min(...values);
-      let maxVal = Math.max(...values);
-      if (maxVal - minVal < 1.2) {
-        minVal -= 0.6;
-        maxVal += 0.6;
-      } else {
-        const margin = (maxVal - minVal) * 0.15;
-        minVal -= margin;
-        maxVal += margin;
-      }
-
-      const getX = idx => padLeft + (series.length === 1 ? plotW / 2 : (idx / (series.length - 1)) * plotW);
-      const getY = val => padTop + plotH - ((val - minVal) / (maxVal - minVal)) * plotH;
-
-      // Horizontal grid lines & Y labels
-      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(100, 116, 139, 0.15)';
-      ctx.fillStyle = isDark ? '#94a3b8' : '#64748b';
-      ctx.font = '10px JetBrains Mono, monospace';
-      ctx.textAlign = 'right';
-
-      const steps = 3;
-      for (let i = 0; i <= steps; i++) {
-        const v = minVal + ((maxVal - minVal) * i) / steps;
-        const y = getY(v);
-        ctx.beginPath();
-        ctx.moveTo(padLeft, y);
-        ctx.lineTo(width - padRight, y);
-        ctx.stroke();
-        ctx.fillText(v.toFixed(1), padLeft - 5, y + 3);
-      }
-
-      // X-axis date labels (first, middle, last)
-      ctx.textAlign = 'center';
-      const labelIndices = [0, Math.floor((series.length - 1) / 2), series.length - 1];
-      const usedIdx = [...new Set(labelIndices)];
-      usedIdx.forEach(idx => {
-        const pt = series[idx];
-        if (!pt) return;
-        const x = getX(idx);
-        const label = pt.date.slice(8, 10) + '.' + pt.date.slice(5, 7);
-        ctx.fillText(label, x, height - 6);
-      });
-
-      // Draw EMA gradient area fill
-      ctx.beginPath();
-      series.forEach((pt, idx) => {
-        const x = getX(idx);
-        const y = getY(pt.ema);
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.lineTo(getX(series.length - 1), padTop + plotH);
-      ctx.lineTo(getX(0), padTop + plotH);
-      ctx.closePath();
-
-      const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
-      grad.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
-      grad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // Draw smooth 7-day EMA trend line
-      ctx.beginPath();
-      series.forEach((pt, idx) => {
-        const x = getX(idx);
-        const y = getY(pt.ema);
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-
-      // Draw dashed connector for raw weights & raw weight dots
-      series.forEach((pt, idx) => {
-        if (pt.raw === null) return;
-        const x = getX(idx);
-        const y = getY(pt.raw);
-
-        ctx.beginPath();
-        ctx.arc(x, y, 3.2, 0, Math.PI * 2);
-        ctx.fillStyle = pt.date === selectedDate ? '#10b981' : (isDark ? '#cbd5e1' : '#475569');
-        ctx.fill();
-      });
-    }
-
-    /********************************************************************
      * 8. MODALS, SETTINGS, PRESETS & JSON BACKUP
      ********************************************************************/
     function openModal(modalId) {
@@ -1594,7 +1161,7 @@
       } else if (modalId === 'syncModal') {
         document.getElementById('shortcutNamePreview').textContent = appState.settings.shortcutName || 'HealthSync';
         const baseUrl = window.location.origin + window.location.pathname;
-        document.getElementById('urlTemplateBox').textContent = `${baseUrl}?weight=73.4&active_kcal=520`;
+        document.getElementById('urlTemplateBox').textContent = `${baseUrl}?active_kcal=520`;
       } else if (modalId === 'presetsModal') {
         renderPresetsModalList();
       }
@@ -1726,9 +1293,8 @@
           if (imported && typeof imported === 'object') {
             appState = {
               settings: { ...appState.settings, ...(imported.settings || {}) },
-              presets: Array.isArray(imported.presets) ? imported.presets : [...DEFAULT_PRESETS],
+              presets: userPresets(imported.presets),
               days: imported.days || {},
-              weights: imported.weights || {}
             };
             saveState();
             renderAll();
@@ -1752,7 +1318,6 @@
       }
 
       appState.days = {};
-      appState.weights = {};
       appState.presets = [...DEFAULT_PRESETS];
       resetConfirmPending = false;
       saveState();
@@ -1780,7 +1345,6 @@
       appState.settings.theme = appState.settings.theme === 'dark' ? 'light' : 'dark';
       applyTheme(appState.settings.theme);
       saveState();
-      renderWeightSection();
     }
 
     function showToast(message) {
@@ -1809,7 +1373,6 @@
       renderHeroSummary();
       renderQuickChips();
       renderDailyLog();
-      renderWeightSection();
     }
 
     /********************************************************************
@@ -1839,13 +1402,11 @@
     function cleanState(value) {
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Недопустимый JSON: ожидался объект состояния');
       if (value.days != null && (typeof value.days !== 'object' || Array.isArray(value.days))) throw new Error('Недопустимые days в state.json');
-      if (value.weights != null && (typeof value.weights !== 'object' || Array.isArray(value.weights))) throw new Error('Недопустимые weights в state.json');
       if (value.presets != null && !Array.isArray(value.presets)) throw new Error('Недопустимые presets в state.json');
       const merged = {
         settings: { ...initialState.settings, ...(value.settings || {}) },
-        presets: value.presets === undefined ? copyData(DEFAULT_PRESETS) : copyData(value.presets),
+        presets: userPresets(copyData(value.presets)),
         days: copyData(value.days || {}),
-        weights: copyData(value.weights || {})
       };
       for (const day of Object.values(merged.days)) {
         if (!day || !Array.isArray(day.entries)) throw new Error('Недопустимый список записей в state.json');
@@ -1882,10 +1443,6 @@
         const newHealth = { kcal: a.healthSyncKcal || 0, time: a.healthSyncTime || null };
         if (!sameData(oldHealth, newHealth)) push('health', date, newHealth);
       }
-      for (const date of new Set([...Object.keys(before.weights || {}), ...Object.keys(after.weights || {})])) {
-        if (!own(after.weights, date)) push('weight-delete', date);
-        else if (!sameData(before.weights[date], after.weights[date])) push('weight-upsert', date, after.weights[date]);
-      }
       return changes;
     }
 
@@ -1913,9 +1470,8 @@
             day.healthSyncTime = op.value.time;
           }
         }
-        if (op.type === 'weight-delete') delete state.weights[op.key];
-        if (op.type === 'weight-upsert') state.weights[op.key] = op.value;
       }
+      state.presets = userPresets(state.presets);
       return state;
     }
 
@@ -2154,16 +1710,13 @@
       scheduleRemoteSync(500);
     }
 
-    // Initialize PWA & Resize Observer
-    window.addEventListener('resize', () => {
-      renderWeightSection();
-    });
+    // Initialize PWA
 
     window.onload = function() {
       loadState();
       restoreSync();
       renderAll();
-      // Check if opened via Apple Shortcuts URL Bridge (?weight=...&active_kcal=...)
+      // Check if opened via Apple Shortcuts URL Bridge (?active_kcal=...)
       processUrlQueryParameters(window.location.search);
       startRemoteEventHooks();
       if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
