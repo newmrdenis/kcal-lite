@@ -103,7 +103,7 @@
     }
     /* Smooth progress ring animation */
     .progress-ring-circle {
-      transition: stroke-dashoffset 0.45s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.3s ease;
+      transition: stroke-dashoffset 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       transform: rotate(-90deg);
       transform-origin: 50% 50%;
     }
@@ -116,17 +116,17 @@
       animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    /* Increase the red tint continuously as the calorie budget fills up. */
+    /* Switch to red only when consumption exceeds the calorie budget. */
     body, #appShell > section, #topNavBar {
-      transition: background-color 0.3s ease, border-color 0.3s ease;
+      transition: none;
     }
-    body { background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #f1f5f9); }
-    .dark body { background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #090d16); }
+    body { background-color: color-mix(in srgb, var(--budget-color, #10b981) var(--budget-tint, 8%), #f1f5f9); }
+    .dark body { background-color: color-mix(in srgb, var(--budget-color, #10b981) var(--budget-tint, 8%), #090d16); }
     #appShell > section, #topNavBar {
-      background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #ffffff);
+      background-color: color-mix(in srgb, var(--budget-color, #10b981) var(--budget-tint, 8%), #ffffff);
     }
     .dark #appShell > section, .dark #topNavBar {
-      background-color: color-mix(in srgb, #ef4444 var(--budget-red, 0%), #131b2e);
+      background-color: color-mix(in srgb, var(--budget-color, #10b981) var(--budget-tint, 8%), #131b2e);
     }
     body[data-budget-level="warning"] #remainingLabel,
     body[data-budget-level="danger"] #remainingLabel { color: #ef4444; }
@@ -360,7 +360,7 @@
       </div>
       <div id="weekDayRings" class="grid grid-cols-7 gap-1"></div>
       <div class="flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
-        <div id="weekTotalRing" class="w-28 h-28 shrink-0"></div>
+        <div class="w-28 shrink-0"><div id="weekTotalRing" class="h-28"></div><div id="weekTotalStatus" class="mt-1"></div></div>
         <div class="min-w-0 space-y-1">
           <div class="text-sm font-semibold">&#1051;&#1080;&#1084;&#1080;&#1090; &#1085;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1102;</div>
           <div id="weekTotals" class="text-xs font-mono text-slate-500 dark:text-slate-400"></div>
@@ -1039,12 +1039,15 @@
     }
 
     function getBudgetColor(ratio) {
-      const redProgress = Math.min(1, Math.max(0, (ratio - 0.9) / 0.1));
-      const start = ratio <= 0.9 ? [16, 185, 129] : [100, 116, 139];
-      const end = ratio <= 0.9 ? [100, 116, 139] : [239, 68, 68];
-      const blend = ratio <= 0.9 ? Math.max(0, ratio / 0.9) : redProgress;
-      const color = start.map((value, index) => Math.round(value + (end[index] - value) * blend));
-      return { redProgress, ringColor: `rgb(${color.join(', ')})` };
+      const over = ratio > 1;
+      return { redProgress: over ? 1 : 0, ringColor: over ? 'rgb(239, 68, 68)' : 'rgb(16, 185, 129)' };
+    }
+
+    function budgetStatusMarkup(eaten, budget, known = true) {
+      if (!known) return '<span class="block h-4" aria-hidden="true"></span>';
+      const over = eaten > budget;
+      const path = over ? 'M6 6l12 12M18 6L6 18' : 'M5 12l4 4L19 6';
+      return `<svg viewBox="0 0 24 24" class="block w-4 h-4 mx-auto ${over ? 'text-red-500' : 'text-emerald-500'}" role="img" aria-label="${over ? 'Over budget' : 'Within budget'}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="${path}" /></svg>`;
     }
 
     function getCurrentWeek(today = new Date()) {
@@ -1081,11 +1084,14 @@
           <span class="block text-[10px] text-slate-500 dark:text-slate-400">${day.day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
           ${budgetRingMarkup(day.eatenKcal, day.effectiveBudget, label, !hasData)}
           <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">${day.day.getDate()}</span>
+          ${budgetStatusMarkup(day.eatenKcal, day.effectiveBudget, hasData && !future)}
         </button>`;
       }).join('');
       const eaten = week.reduce((sum, day) => sum + day.eatenKcal, 0);
       const budget = week.reduce((sum, day) => sum + day.effectiveBudget, 0);
       document.getElementById('weekTotalRing').innerHTML = budgetRingMarkup(eaten, budget, `Week: ${eaten} / ${budget} kcal`);
+      const hasWeekData = week.some(day => day.date <= today && appState.days[day.date]?.entries?.length);
+      document.getElementById('weekTotalStatus').innerHTML = budgetStatusMarkup(eaten, budget, hasWeekData);
       document.getElementById('weekTotals').textContent = `${eaten} / ${budget} kcal`;
       document.getElementById('weekRemaining').textContent = `${budget >= eaten ? '\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c' : '\u041f\u0435\u0440\u0435\u0431\u043e\u0440'}: ${Math.abs(budget - eaten)} kcal`;
     }
@@ -1100,7 +1106,8 @@
       document.body.dataset.budgetLevel = budgetLevel;
       const budgetRatio = Math.max(0, eatenKcal / effectiveBudget);
       const { redProgress, ringColor } = getBudgetColor(budgetRatio);
-      document.body.style.setProperty('--budget-red', `${(redProgress * 100).toFixed(2)}%`);
+      document.body.style.setProperty('--budget-color', ringColor);
+      document.body.style.setProperty('--budget-tint', redProgress ? '100%' : '8%');
 
       // Update numbers
       document.getElementById('statEaten').textContent = eatenKcal;
