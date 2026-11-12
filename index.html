@@ -128,8 +128,10 @@
     .dark #appShell > section, .dark #topNavBar {
       background-color: color-mix(in srgb, var(--budget-color, #10b981) var(--budget-tint, 8%), #131b2e);
     }
-    body[data-budget-level="warning"] #remainingLabel,
-    body[data-budget-level="danger"] #remainingLabel { color: #ef4444; }
+    #calorieHero[data-over-budget="true"] #calorieRingBackdrop { fill: #19121c; }
+    #calorieHero[data-over-budget="true"] #remainingValue { color: #ffffff; }
+    #calorieHero[data-over-budget="true"] #remainingLabel,
+    #calorieHero[data-over-budget="true"] #remainingUnit { color: #e2e8f0; }
 
     @media (prefers-reduced-motion: reduce) {
       .toast-enter { animation: none; }
@@ -199,13 +201,14 @@
         <!-- Left Circular Ring -->
         <div class="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
           <svg class="w-32 h-32" viewBox="0 0 120 120">
+            <circle id="calorieRingBackdrop" cx="60" cy="60" r="58" fill="none" />
             <circle cx="60" cy="60" r="50" fill="transparent" stroke="currentColor" stroke-width="10" class="text-slate-100 dark:text-slate-800" />
             <circle id="calorieRingCircle" cx="60" cy="60" r="50" fill="transparent" stroke="#10b981" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16" class="progress-ring-circle" />
           </svg>
           <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-2">
             <span id="remainingLabel" class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-400">Осталось</span>
             <span id="remainingValue" class="text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white">1900</span>
-            <span class="text-[10px] text-slate-400 font-medium">ккал</span>
+            <span id="remainingUnit" class="text-[10px] text-slate-400 font-medium">ккал</span>
           </div>
         </div>
 
@@ -1104,6 +1107,7 @@
       const budgetLevel = remaining >= 0 ? 'normal'
         : eatenKcal > effectiveBudget * 1.10 ? 'danger' : 'warning';
       document.body.dataset.budgetLevel = budgetLevel;
+      document.getElementById('calorieHero').dataset.overBudget = remaining < 0;
       const budgetRatio = Math.max(0, eatenKcal / effectiveBudget);
       const { redProgress, ringColor } = getBudgetColor(budgetRatio);
       document.body.style.setProperty('--budget-color', ringColor);
@@ -1136,12 +1140,9 @@
       if (budgetLevel === 'normal') {
         remLabel.textContent = 'Осталось';
         remValue.textContent = remaining;
-        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white';
       } else {
         remLabel.textContent = budgetLevel === 'danger' ? 'Перебор >10%' : 'Перебор';
         remValue.textContent = `+${Math.abs(remaining)}`;
-        remValue.className = 'text-2xl font-extrabold font-mono tracking-tight ' +
-          'text-red-500';
       }
 
     }
