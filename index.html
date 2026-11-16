@@ -358,7 +358,7 @@
 
     <section id="weeklyOverview" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">&#1058;&#1077;&#1082;&#1091;&#1097;&#1072;&#1103; &#1085;&#1077;&#1076;&#1077;&#1083;&#1103;</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">&#1054;&#1073;&#1079;&#1086;&#1088; &#1085;&#1077;&#1076;&#1077;&#1083;&#1080;</h2>
         <span id="weekDateRange" class="text-xs text-slate-500 dark:text-slate-400"></span>
       </div>
       <div id="weekDayRings" class="grid grid-cols-7 gap-1"></div>
@@ -1094,8 +1094,9 @@
       return `<svg viewBox="0 0 24 24" class="block w-4 h-4 mx-auto ${over ? 'text-red-500' : 'text-emerald-500'}" role="img" aria-label="${over ? 'Over budget' : 'Within budget'}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="${path}" /></svg>`;
     }
 
-    function getCurrentWeek(today = new Date()) {
-      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    function getWeekForDate(date) {
+      const [year, month, dayOfMonth] = date.split('-').map(Number);
+      const monday = new Date(year, month - 1, dayOfMonth);
       monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
       return Array.from({ length: 7 }, (_, index) => {
         const day = new Date(monday);
@@ -1116,7 +1117,7 @@
     }
 
     function renderWeeklyOverview() {
-      const week = getCurrentWeek();
+      const week = getWeekForDate(selectedDate);
       const today = getLocalDateString();
       const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
       document.getElementById('weekDateRange').textContent = `${formatDate(week[0].day)} - ${formatDate(week[6].day)}`;
