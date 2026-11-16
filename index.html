@@ -421,12 +421,15 @@
           <button onclick="triggerIosShortcut()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold text-xs shadow-lg shadow-blue-600/25 transition flex items-center justify-center gap-2">
             <span>Run <code id="shortcutNamePreview">HealthSync</code></span>
           </button>
+          <button type="button" onclick="triggerIosShortcut('last30')" class="w-full py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs">
+            Import last 30 days
+          </button>
         </div>
 
         <!-- URL Scheme Documentation for iOS Shortcuts -->
         <div class="space-y-2">
           <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 break-all select-all border border-slate-200 dark:border-slate-800" id="urlTemplateBox">
-            https://ВАШ-АДРЕС/?active_kcal=520
+            ?date=YYYY-MM-DD&amp;active_kcal=520
           </div>
           <button onclick="copyUrlTemplate()" class="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-semibold transition">
             📋 Скопировать шаблон URL
@@ -439,13 +442,13 @@
           </ul>
         </div>
 
-        <!-- 4-Step iOS Shortcut Guide -->
+        <!-- iOS Shortcut setup -->
         <div class="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-1.5">
-          <div class="font-bold text-slate-900 dark:text-white">Инструкция для приложения «Команды» (iOS):</div>
+          <div class="font-bold text-slate-900 dark:text-white">Shortcut setup</div>
           <ol class="list-decimal pl-4 space-y-1 text-[11px]">
-            <li>Создайте команду с именем <strong>HealthSync</strong>.</li>
-            <li>Добавьте действие <strong>«Найти объекты Здоровья»</strong> → Тип: <em>Активная энергия</em>, Дата начала: <em>Сегодня</em> → <strong>«Посчитать» (Сумма)</strong>.</li>
-            <li>Добавьте действие <strong>«Открыть URL»</strong> и подставьте переменную Активной энергии в строку <code class="font-mono">?active_kcal=...</code>.</li>
+            <li><strong>Shortcut Input</strong> is the selected date or <code>last30</code>. For <code>last30</code>, start with <strong>Current Date</strong> and repeat 30 times; otherwise use the selected date and repeat once.</li>
+            <li>For each day, sum <strong>Active Calories</strong> from the start of that day to the start of the next. Return a line like <code>YYYY-MM-DD=520</code> for each day with samples.</li>
+            <li>Use <strong>Combine Text</strong> with <strong>New Lines</strong>, then <strong>URL Encode</strong>. Pass the encoded text in <code>?active_history=...</code> and use <strong>Open URLs</strong> once.</li>
           </ol>
         </div>
       </div>
@@ -813,6 +816,22 @@
      * 3. URL PARAMETER BRIDGE FOR APPLE HEALTH & GARMIN
      * Parses ?active_kcal=520&food=Онигири&kcal=180&date=YYYY-MM-DD
      ********************************************************************/
+    function parseActiveHistory(value) {
+      const lines = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      if (!lines.length || lines.length > 30) return null;
+      const days = new Map();
+      for (const line of lines) {
+        const match = /^(\d{4}-\d{2}-\d{2})=(\d{1,5})$/.exec(line);
+        if (!match) return null;
+        const [, date, rawKcal] = match;
+        const day = new Date(date + 'T00:00:00Z');
+        const kcal = Number(rawKcal);
+        if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== date || kcal > 15000) return null;
+        days.set(date, kcal);
+      }
+      return days;
+    }
+
     function processUrlQueryParameters(searchString) {
       if (!searchString || searchString.length <= 1) return;
 
@@ -823,18 +842,39 @@
 
       const syncedMessages = [];
 
+      let activityChanged = false;
+      if (params.has('active_history')) {
+        const days = parseActiveHistory(params.get('active_history'));
+        if (!days) {
+          showToast('Health import failed: invalid date or calorie data.');
+          return;
+        }
+        const time = getCurrentTimeStr();
+        for (const [date, kcal] of days) {
+          const record = ensureDayRecord(date);
+          if (record.healthSyncKcal === kcal && record.healthSyncTime) continue;
+          record.healthSyncKcal = kcal;
+          record.healthSyncTime = time;
+          activityChanged = true;
+        }
+        if (days.size === 1) selectedDate = days.keys().next().value;
+        syncedMessages.push(`Health history: ${days.size} days`);
+      }
+
       // 2. Parse Apple Health / Garmin active_kcal parameter (&active_kcal=520)
-      if (params.has('active_kcal')) {
+      if (!params.has('active_history') && params.has('active_kcal')) {
         const activeVal = Math.round(parseFloat(params.get('active_kcal')));
         if (!isNaN(activeVal) && activeVal >= 0 && activeVal <= 15000) {
           const dayRec = ensureDayRecord(targetDate);
           dayRec.healthSyncKcal = activeVal;
           dayRec.healthSyncTime = getCurrentTimeStr();
+          activityChanged = true;
           syncedMessages.push(`Активность ${activeVal} ккал`);
         }
       }
 
       // 3. Optional quick food log via URL (&food=Онигири&kcal=180)
+      let foodChanged = false;
       if (params.has('kcal')) {
         const kcalVal = Math.round(parseFloat(params.get('kcal')));
         const foodName = (params.get('food') || 'Быстрый ввод').trim();
@@ -847,13 +887,14 @@
             type: kcalVal < 0 ? 'workout' : 'food',
             time: getCurrentTimeStr()
           });
+          foodChanged = true;
           syncedMessages.push(`${foodName} (${kcalVal > 0 ? '+' : ''}${kcalVal} ккал)`);
         }
       }
 
       if (syncedMessages.length > 0) {
-        selectedDate = targetDate;
-        saveState();
+        if (!params.has('active_history') || foodChanged) selectedDate = targetDate;
+        if (activityChanged || foodChanged) saveState();
         renderAll();
         showToast(`Синхронизировано из Health: ${syncedMessages.join(' · ')}`, '⌚');
 
@@ -866,9 +907,9 @@
       }
     }
 
-    function triggerIosShortcut() {
+    function triggerIosShortcut(dateOrMode = selectedDate) {
       const shortcutName = encodeURIComponent(appState.settings.shortcutName || 'HealthSync');
-      window.location.href = `shortcuts://run-shortcut?name=${shortcutName}`;
+      window.location.href = `shortcuts://run-shortcut?name=${shortcutName}&input=text&text=${encodeURIComponent(dateOrMode)}`;
     }
 
     /********************************************************************
@@ -1250,7 +1291,7 @@
       } else if (modalId === 'syncModal') {
         document.getElementById('shortcutNamePreview').textContent = appState.settings.shortcutName || 'HealthSync';
         const baseUrl = window.location.origin + window.location.pathname;
-        document.getElementById('urlTemplateBox').textContent = `${baseUrl}?active_kcal=520`;
+        document.getElementById('urlTemplateBox').textContent = `${baseUrl}?date=${selectedDate}&active_kcal=520`;
       } else if (modalId === 'presetsModal') {
         renderPresetsModalList();
       }
