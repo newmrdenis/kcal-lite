@@ -499,6 +499,12 @@
           />
         </div>
 
+        <div class="space-y-1.5">
+          <label class="block font-bold text-slate-700 dark:text-slate-200">Вес (кг), для расчёта жира</label>
+          <input type="number" min="30" max="300" step="0.1" id="settingsWeightInput"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-mono font-bold text-sm text-slate-900 dark:text-white" />
+        </div>
+
         <!-- Exercise Calories Toggle -->
         <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
           <div class="pr-3">
@@ -637,6 +643,9 @@
     let appState = {
       settings: {
         dailyGoal: 1900,
+        weightKg: 90,
+        heightCm: 176,
+        birthDate: '1996-12-31',
         includeExerciseInBudget: true,
         shortcutName: 'HealthSync',
         theme: 'dark'
@@ -1087,6 +1096,18 @@
       );
     }
 
+    // Real expenditure estimate: Mifflin-St Jeor BMR (male) * 1.2 (sedentary) + the same activity bonus the budget uses.
+    function maintenanceFor(date, exerciseBonus) {
+      const st = appState.settings;
+      const weight = Number(st.weightKg) || 90;
+      const height = Number(st.heightCm) || 176;
+      const [by, bm, bd] = String(st.birthDate || '1996-12-31').split('-').map(Number);
+      const [y, m, d] = date.split('-').map(Number);
+      const age = y - by - ((m < bm || (m === bm && d < bd)) ? 1 : 0);
+      const bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+      return Math.round(bmr * 1.2) + exerciseBonus;
+    }
+
     function getDayBudget(date) {
       const day = appState.days[date] || {};
       let eatenKcal = 0;
@@ -1099,7 +1120,7 @@
       const exerciseBonus = Math.round((syncedBurned + manualWorkoutKcal) * 0.5);
       const effectiveBudget = (Number(appState.settings.dailyGoal) || 1900)
         + (appState.settings.includeExerciseInBudget ? exerciseBonus : 0);
-      return { eatenKcal, manualWorkoutKcal, syncedBurned, exerciseBonus, effectiveBudget };
+      return { eatenKcal, manualWorkoutKcal, syncedBurned, exerciseBonus, effectiveBudget, maintenanceKcal: maintenanceFor(date, exerciseBonus) };
     }
 
     function getBudgetColor(ratio) {
@@ -1243,8 +1264,8 @@
         // Fat total: closed days, plus past open days that have entries (empty days are unknown, today is unfinished).
         const hasEntries = Boolean(appState.days[day.date]?.entries?.length);
         // Open past days count only when already over budget: a deficit there may just be unlogged food.
-        if (status === 'ok' || status === 'over' || (status === 'open' && hasEntries && day.date < today && day.eatenKcal > day.effectiveBudget)) {
-          net += day.eatenKcal - day.effectiveBudget; counted++;
+        if (status === 'ok' || status === 'over' || (status === 'open' && hasEntries && day.date < today && day.eatenKcal > day.maintenanceKcal)) {
+          net += day.eatenKcal - day.maintenanceKcal; counted++;
         }
         const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} ккал, ${names[status]}`;
         return `<button type="button" onclick="onDatePickerChange('${day.date}')" title="${escapeHtml(label)}" aria-pressed="${selectedDate === day.date}" class="min-w-0 rounded-xl py-0.5 ${selectedDate === day.date ? 'bg-slate-200 dark:bg-slate-700' : ''} ${status === 'future' ? 'opacity-40' : ''}">
@@ -1258,11 +1279,11 @@
         : `<div class="inline-block px-2.5 py-1 rounded-xl font-bold bg-emerald-500 text-[#04291c]">Сброшено жира: ~${Math.abs(fat)} г <span class="text-xs font-mono opacity-80">(${net} ккал, ${counted} дн.)</span></div>`;
       document.getElementById('monthSummary').innerHTML = fatLine +
         `<div class="text-xs text-slate-500 dark:text-slate-400">зелёных ${ok} · перебор ${over} · <span class="font-bold underline decoration-red-500 decoration-2">не завершено ${open}</span></div>` +
-        (open ? '<div class="text-[10px] text-slate-500 dark:text-slate-400">Зелёный день: завершён и в норме. Жир: завершённые дни плюс незавершённые с перебором (недобор там может быть просто незаписанной едой).</div>' : '');
+        (open ? '<div class="text-[10px] text-slate-500 dark:text-slate-400">Зелёный день: завершён и в норме. Жир: съеденное минус примерный расход (Mifflin-St Jeor x 1.2 + бонус активности), 7.7 ккал на грамм. Считаются завершённые дни и незавершённые, где съедено больше расхода.</div>' : '');
     }
 
     function renderHeroSummary() {
-      const { eatenKcal, syncedBurned, manualWorkoutKcal, exerciseBonus, effectiveBudget } = getDayBudget(selectedDate);
+      const { eatenKcal, syncedBurned, manualWorkoutKcal, exerciseBonus, effectiveBudget, maintenanceKcal } = getDayBudget(selectedDate);
       const includeExercise = appState.settings.includeExerciseInBudget;
       const remaining = effectiveBudget - eatenKcal;
       // Use the budget including the enabled activity bonus.
@@ -1299,19 +1320,20 @@
       circle.style.strokeDashoffset = offset.toFixed(2);
       circle.style.stroke = ringColor;
 
-      // Fat instead of kcal: what today does to body fat relative to the budget.
-      const fatGrams = fatGramsFromKcal(eatenKcal - effectiveBudget);
+      // Fat instead of kcal: eaten vs estimated real expenditure (not vs the deficit budget).
+      const fatGrams = fatGramsFromKcal(eatenKcal - maintenanceKcal);
       const remUnit = document.getElementById('remainingUnit');
-      if (remaining >= 0) {
+      remUnit.title = `Расход ~${maintenanceKcal} ккал`;
+      if (fatGrams <= 0) {
         remLabel.textContent = 'Сброшу жира';
         remValue.textContent = `\u2212${Math.abs(fatGrams)} г`;
-        remValue.style.color = 'rgb(16, 185, 129)';
-        remUnit.textContent = `ещё ${remaining} ккал`;
+        remValue.style.color = remaining >= 0 ? 'rgb(16, 185, 129)' : '';
+        remUnit.textContent = remaining >= 0 ? `ещё ${remaining} ккал` : 'но лимит превышен';
       } else {
         remLabel.textContent = 'Наберу жира';
         remValue.textContent = `+${fatGrams} г`;
         remValue.style.color = '';
-        remUnit.textContent = 'за сегодня';
+        remUnit.textContent = `расход ~${maintenanceKcal}`;
       }
 
     }
@@ -1411,6 +1433,7 @@
     function openModal(modalId) {
       if (modalId === 'settingsModal') {
         document.getElementById('settingsGoalInput').value = appState.settings.dailyGoal;
+        document.getElementById('settingsWeightInput').value = appState.settings.weightKg || 90;
         document.getElementById('settingsExerciseToggle').checked = appState.settings.includeExerciseInBudget;
         document.getElementById('settingsShortcutInput').value = appState.settings.shortcutName || 'HealthSync';
         resetConfirmPending = false;
@@ -1443,6 +1466,8 @@
       if (!isNaN(goalVal) && goalVal >= 500 && goalVal <= 15000) {
         appState.settings.dailyGoal = goalVal;
       }
+      const weightVal = parseFloat(document.getElementById('settingsWeightInput').value);
+      if (!isNaN(weightVal) && weightVal >= 30 && weightVal <= 300) appState.settings.weightKg = weightVal;
       appState.settings.includeExerciseInBudget = includeEx;
       appState.settings.shortcutName = shortcutName;
 
