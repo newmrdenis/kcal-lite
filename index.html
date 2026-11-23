@@ -102,14 +102,7 @@
       scrollbar-width: none;
     }
     /* Month view cells */
-    .month-cell { aspect-ratio: 1 / 1; border-radius: 0.6rem; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 11px; font-weight: 700; border: 2px solid transparent; }
     .month-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid transparent; }
-    .month-ok { background: rgb(16, 185, 129); color: #04291c; }
-    .month-over { background: rgb(220, 38, 38); color: #fff; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.3); }
-    .month-open { color: #fff; border-color: rgb(239, 68, 68);
-      background: repeating-linear-gradient(45deg, rgb(185, 28, 28) 0 4px, rgb(127, 29, 29) 4px 8px); }
-    .month-none { background: rgba(148, 163, 184, 0.15); color: rgb(100, 116, 139); }
-    .month-selected { outline: 2px solid rgb(148, 163, 184); outline-offset: 1px; }
 
     /* Smooth progress ring animation */
     .progress-ring-circle {
@@ -386,18 +379,17 @@
 
     <section id="monthOverview" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 space-y-3">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">30 дней</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">4 недели</h2>
         <span id="monthDateRange" class="text-xs text-slate-500 dark:text-slate-400"></span>
       </div>
       <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-slate-500 dark:text-slate-400">
         <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
       </div>
-      <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
+      <div id="monthGrid" class="grid grid-cols-7 gap-x-1 gap-y-1.5"></div>
       <div id="monthSummary" class="text-sm space-y-1 border-t border-slate-200 dark:border-slate-700 pt-3"></div>
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
-        <span class="flex items-center gap-1"><span class="month-swatch month-ok"></span>в норме</span>
-        <span class="flex items-center gap-1"><span class="month-swatch month-over"></span>перебор</span>
-        <span class="flex items-center gap-1"><span class="month-swatch month-open"></span>не завершён</span>
+        <span class="flex items-center gap-1"><span class="month-swatch" style="border-color:rgb(16,185,129);border-radius:9999px"></span>завершён и в норме</span>
+        <span class="flex items-center gap-1"><span class="month-swatch" style="border-color:rgb(239,68,68);border-radius:9999px;background:rgba(239,68,68,.22)"></span>перебор или не завершён</span>
       </div>
     </section>
 
@@ -1144,9 +1136,38 @@
       </svg>`;
     }
 
+    // Green only when the day is closed AND within budget; open or over days are red.
+    function dayStatus(date, eaten, budget, firstLogged, today) {
+      if (date > today) return 'future';
+      if (date < firstLogged && !dayHasData(date)) return 'none';
+      if (!appState.days[date]?.closed) return 'open';
+      return eaten > budget ? 'over' : 'ok';
+    }
+
+    function firstLoggedDate() {
+      return Object.keys(appState.days).filter(dayHasData).sort()[0] || getLocalDateString();
+    }
+
+    function dayRingMarkup(eaten, budget, status, label) {
+      const ratio = budget > 0 ? Math.max(0, eaten / budget) : 0;
+      const green = 'rgb(16, 185, 129)', red = 'rgb(239, 68, 68)';
+      const color = status === 'ok' ? green : red;
+      const tinted = status === 'ok' || status === 'open' || status === 'over';
+      const fill = status === 'ok' ? 'rgba(16, 185, 129, 0.18)' : tinted ? 'rgba(239, 68, 68, 0.22)' : 'none';
+      const track = tinted && status !== 'ok' ? 'stroke="rgba(239, 68, 68, 0.45)"' : 'class="text-slate-200 dark:text-slate-700" stroke="currentColor"';
+      const circumference = 2 * Math.PI * 40;
+      const text = status === 'future' || status === 'none' ? '--' : (eaten ? Math.round(ratio * 100) + '%' : '0');
+      return `<svg viewBox="0 0 100 100" class="block w-full aspect-square" role="img" aria-label="${escapeHtml(label)}">
+        <circle cx="50" cy="50" r="40" fill="${fill}" ${track} stroke-width="7" />
+        ${status === 'future' || status === 'none' ? '' : `<circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference * (1 - Math.min(ratio, 1))}" transform="rotate(-90 50 50)" />`}
+        <text x="50" y="56" text-anchor="middle" class="fill-slate-600 dark:fill-slate-200" font-size="20" font-family="monospace" font-weight="700">${text}</text>
+      </svg>`;
+    }
+
     function renderWeeklyOverview() {
-      const week = getWeekForDate(selectedDate);
+      const week = getWeekForDate(selectedDate).map(day => ({ ...day, closed: Boolean(appState.days[day.date]?.closed) }));
       const today = getLocalDateString();
+      const firstLogged = firstLoggedDate();
       const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
       document.getElementById('weekDateRange').textContent = `${formatDate(week[0].day)} - ${formatDate(week[6].day)}`;
       document.getElementById('weekDayRings').innerHTML = week.map(day => {
@@ -1155,9 +1176,9 @@
         const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} kcal`;
         return `<button type="button" onclick="onDatePickerChange('${day.date}')" aria-label="${escapeHtml(label)}" aria-pressed="${selectedDate === day.date}" class="min-w-0 rounded-xl py-1 ${selectedDate === day.date ? 'bg-slate-200 dark:bg-slate-700' : ''} ${future ? 'opacity-40' : ''}">
           <span class="block text-[10px] text-slate-500 dark:text-slate-400">${day.day.toLocaleDateString('ru-RU', { weekday: 'short' })}</span>
-          ${budgetRingMarkup(day.eatenKcal, day.effectiveBudget, label, !hasData)}
+          ${dayRingMarkup(day.eatenKcal, day.effectiveBudget, dayStatus(day.date, day.eatenKcal, day.effectiveBudget, firstLogged, today), label)}
           <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">${day.day.getDate()}</span>
-          ${budgetStatusMarkup(day.eatenKcal, day.effectiveBudget, hasData && !future)}
+          ${budgetStatusMarkup(day.closed ? day.eatenKcal : day.effectiveBudget + 1, day.effectiveBudget, !future && dayStatus(day.date, day.eatenKcal, day.effectiveBudget, firstLogged, today) !== 'none')}
         </button>`;
       }).join('');
       const eaten = week.reduce((sum, day) => sum + day.eatenKcal, 0);
@@ -1195,51 +1216,49 @@
       btn.textContent = closed ? 'День завершён \u2713 (открыть снова)' : 'Завершить день';
       btn.className = 'w-full py-2.5 rounded-2xl text-sm font-bold transition ' + (closed
         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-        : 'bg-red-600 text-white hover:bg-red-500');
+        : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700');
     }
 
     function renderMonthOverview() {
       const today = getLocalDateString();
+      const firstLogged = firstLoggedDate();
       const [y, m, d] = selectedDate.split('-').map(Number);
-      const end = new Date(y, m - 1, d);
-      const days = Array.from({ length: 30 }, (_, i) => {
-        const day = new Date(end);
-        day.setDate(day.getDate() - 29 + i);
+      const start = new Date(y, m - 1, d);
+      start.setDate(start.getDate() - (start.getDay() + 6) % 7 - 21);
+      const days = Array.from({ length: 28 }, (_, i) => {
+        const day = new Date(start);
+        day.setDate(day.getDate() + i);
         const date = getLocalDateString(day);
         return { date, day, ...getDayBudget(date) };
       });
-      const logged = Object.keys(appState.days).filter(dayHasData).sort();
-      const firstLogged = logged[0] || today;
       const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-      document.getElementById('monthDateRange').textContent = `${formatDate(days[0].day)} - ${formatDate(days[29].day)}`;
+      document.getElementById('monthDateRange').textContent = `${formatDate(days[0].day)} - ${formatDate(days[27].day)}`;
+      const names = { ok: 'в норме, завершён', over: 'перебор', open: 'не завершён', none: 'нет данных', future: 'будущее' };
       let ok = 0, over = 0, open = 0, net = 0, counted = 0;
-      const pad = (days[0].day.getDay() + 6) % 7;
-      const cells = Array.from({ length: pad }, () => '<span></span>');
-      for (const day of days) {
-        const closed = Boolean(appState.days[day.date]?.closed);
-        let cls = 'month-none';
-        let state = 'нет данных';
-        if (day.date > today) {
-          cls = 'month-none opacity-40'; state = 'будущее';
-        } else if (day.date >= firstLogged || dayHasData(day.date)) {
-          // Fat total: closed days, plus past open days that have entries (empty days are unknown, today is unfinished).
-          const hasEntries = Boolean(appState.days[day.date]?.entries?.length);
-          if (closed || (hasEntries && day.date < today)) { net += day.eatenKcal - day.effectiveBudget; counted++; }
-          if (!closed) { cls = 'month-open'; state = 'не завершён'; open++; }
-          else if (day.eatenKcal > day.effectiveBudget) { cls = 'month-over'; state = 'перебор'; over++; }
-          else { cls = 'month-ok'; state = 'в норме'; ok++; }
+      document.getElementById('monthGrid').innerHTML = days.map(day => {
+        const status = dayStatus(day.date, day.eatenKcal, day.effectiveBudget, firstLogged, today);
+        if (status === 'ok') ok++;
+        if (status === 'over') over++;
+        if (status === 'open') open++;
+        // Fat total: closed days, plus past open days that have entries (empty days are unknown, today is unfinished).
+        const hasEntries = Boolean(appState.days[day.date]?.entries?.length);
+        // Open past days count only when already over budget: a deficit there may just be unlogged food.
+        if (status === 'ok' || status === 'over' || (status === 'open' && hasEntries && day.date < today && day.eatenKcal > day.effectiveBudget)) {
+          net += day.eatenKcal - day.effectiveBudget; counted++;
         }
-        const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} ккал, ${state}`;
-        cells.push(`<button type="button" onclick="onDatePickerChange('${day.date}')" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" class="month-cell ${cls} ${day.date === selectedDate ? 'month-selected' : ''}">${day.day.getDate()}</button>`);
-      }
-      document.getElementById('monthGrid').innerHTML = cells.join('');
+        const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} ккал, ${names[status]}`;
+        return `<button type="button" onclick="onDatePickerChange('${day.date}')" title="${escapeHtml(label)}" aria-pressed="${selectedDate === day.date}" class="min-w-0 rounded-xl py-0.5 ${selectedDate === day.date ? 'bg-slate-200 dark:bg-slate-700' : ''} ${status === 'future' ? 'opacity-40' : ''}">
+          ${dayRingMarkup(day.eatenKcal, day.effectiveBudget, status, label)}
+          <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">${day.day.getDate()}</span>
+        </button>`;
+      }).join('');
       const fat = fatGramsFromKcal(net);
       const fatLine = net > 0
         ? `<div class="inline-block px-2.5 py-1 rounded-xl font-bold bg-red-600 text-white ring-1 ring-black/20">Набрано жира: ~${fat} г <span class="text-xs font-mono opacity-80">(+${net} ккал, ${counted} дн.)</span></div>`
         : `<div class="inline-block px-2.5 py-1 rounded-xl font-bold bg-emerald-500 text-[#04291c]">Сброшено жира: ~${Math.abs(fat)} г <span class="text-xs font-mono opacity-80">(${net} ккал, ${counted} дн.)</span></div>`;
       document.getElementById('monthSummary').innerHTML = fatLine +
-        `<div class="text-xs text-slate-500 dark:text-slate-400">в норме ${ok} · перебор ${over} · <span class="font-bold underline decoration-red-500 decoration-2">не завершено ${open}</span></div>` +
-        (open ? '<div class="text-[10px] text-slate-500 dark:text-slate-400">Считаются завершённые дни и прошлые дни с записями; пустые дни и сегодня (пока не завершён) не в счёт. В незавершённых днях записано не всё, так что жира, скорее всего, больше.</div>' : '');
+        `<div class="text-xs text-slate-500 dark:text-slate-400">зелёных ${ok} · перебор ${over} · <span class="font-bold underline decoration-red-500 decoration-2">не завершено ${open}</span></div>` +
+        (open ? '<div class="text-[10px] text-slate-500 dark:text-slate-400">Зелёный день: завершён и в норме. Жир: завершённые дни плюс незавершённые с перебором (недобор там может быть просто незаписанной едой).</div>' : '');
     }
 
     function renderHeroSummary() {
