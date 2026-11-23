@@ -101,6 +101,16 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    /* Month view cells */
+    .month-cell { aspect-ratio: 1 / 1; border-radius: 0.6rem; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 11px; font-weight: 700; border: 2px solid transparent; }
+    .month-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 2px solid transparent; }
+    .month-ok { background: rgb(16, 185, 129); color: #04291c; }
+    .month-over { background: rgb(220, 38, 38); color: #fff; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.3); }
+    .month-open { color: #fff; border-color: rgb(239, 68, 68);
+      background: repeating-linear-gradient(45deg, rgb(185, 28, 28) 0 4px, rgb(127, 29, 29) 4px 8px); }
+    .month-none { background: rgba(148, 163, 184, 0.15); color: rgb(100, 116, 139); }
+    .month-selected { outline: 2px solid rgb(148, 163, 184); outline-offset: 1px; }
+
     /* Smooth progress ring animation */
     .progress-ring-circle {
       transition: stroke-dashoffset 0.45s cubic-bezier(0.22, 1, 0.36, 1);
@@ -328,6 +338,7 @@
         </h2>
         <span id="entriesCountBadge" class="text-[11px] text-slate-400 font-medium">0 записей</span>
       </div>
+      <button type="button" id="closeDayBtn" onclick="toggleDayClosed()" class="w-full py-2.5 rounded-2xl text-sm font-bold transition"></button>
 
       <!-- Synced Apple Health / Garmin Active Energy Banner (shown when healthSyncKcal > 0) -->
       <div id="syncedActivityCard" class="hidden items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-red-500/10 to-blue-500/10 border border-red-500/25">
@@ -370,6 +381,23 @@
           <div id="weekRemaining" class="text-sm font-semibold"></div>
           <div class="text-[10px] text-slate-500 dark:text-slate-400">&#1051;&#1080;&#1084;&#1080;&#1090; &#1079;&#1072; 7 &#1076;&#1085;&#1077;&#1081; &#1089; &#1073;&#1086;&#1085;&#1091;&#1089;&#1072;&#1084;&#1080;</div>
         </div>
+      </div>
+    </section>
+
+    <section id="monthOverview" class="bg-white dark:bg-[#131b2e] rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800/90 space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">30 дней</h2>
+        <span id="monthDateRange" class="text-xs text-slate-500 dark:text-slate-400"></span>
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-slate-500 dark:text-slate-400">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="monthGrid" class="grid grid-cols-7 gap-1"></div>
+      <div id="monthSummary" class="text-sm space-y-1 border-t border-slate-200 dark:border-slate-700 pt-3"></div>
+      <div class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <span class="flex items-center gap-1"><span class="month-swatch month-ok"></span>в норме</span>
+        <span class="flex items-center gap-1"><span class="month-swatch month-over"></span>перебор</span>
+        <span class="flex items-center gap-1"><span class="month-swatch month-open"></span>не завершён</span>
       </div>
     </section>
 
@@ -1141,6 +1169,79 @@
       document.getElementById('weekRemaining').textContent = `${budget >= eaten ? '\u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c' : '\u041f\u0435\u0440\u0435\u0431\u043e\u0440'}: ${Math.abs(budget - eaten)} kcal`;
     }
 
+    // About 7700 kcal per kg of body fat (the classic rule of thumb; rough for a single day).
+    const KCAL_PER_FAT_GRAM = 7.7;
+    function fatGramsFromKcal(kcal) {
+      return Math.round(kcal / KCAL_PER_FAT_GRAM);
+    }
+
+    function dayHasData(date) {
+      const day = appState.days[date];
+      return Boolean(day?.entries?.length || day?.healthSyncTime || day?.closed);
+    }
+
+    function toggleDayClosed() {
+      const day = ensureDayRecord(selectedDate);
+      if (day.closed) delete day.closed;
+      else day.closed = true;
+      saveState();
+      renderAll();
+      showToast(day.closed ? 'День завершён' : 'День снова открыт');
+    }
+
+    function renderCloseDayButton() {
+      const btn = document.getElementById('closeDayBtn');
+      const closed = Boolean(appState.days[selectedDate]?.closed);
+      btn.textContent = closed ? 'День завершён \u2713 (открыть снова)' : 'Завершить день';
+      btn.className = 'w-full py-2.5 rounded-2xl text-sm font-bold transition ' + (closed
+        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+        : 'bg-red-600 text-white hover:bg-red-500');
+    }
+
+    function renderMonthOverview() {
+      const today = getLocalDateString();
+      const [y, m, d] = selectedDate.split('-').map(Number);
+      const end = new Date(y, m - 1, d);
+      const days = Array.from({ length: 30 }, (_, i) => {
+        const day = new Date(end);
+        day.setDate(day.getDate() - 29 + i);
+        const date = getLocalDateString(day);
+        return { date, day, ...getDayBudget(date) };
+      });
+      const logged = Object.keys(appState.days).filter(dayHasData).sort();
+      const firstLogged = logged[0] || today;
+      const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      document.getElementById('monthDateRange').textContent = `${formatDate(days[0].day)} - ${formatDate(days[29].day)}`;
+      let ok = 0, over = 0, open = 0, net = 0, counted = 0;
+      const pad = (days[0].day.getDay() + 6) % 7;
+      const cells = Array.from({ length: pad }, () => '<span></span>');
+      for (const day of days) {
+        const closed = Boolean(appState.days[day.date]?.closed);
+        let cls = 'month-none';
+        let state = 'нет данных';
+        if (day.date > today) {
+          cls = 'month-none opacity-40'; state = 'будущее';
+        } else if (day.date >= firstLogged || dayHasData(day.date)) {
+          // Fat total: closed days, plus past open days that have entries (empty days are unknown, today is unfinished).
+          const hasEntries = Boolean(appState.days[day.date]?.entries?.length);
+          if (closed || (hasEntries && day.date < today)) { net += day.eatenKcal - day.effectiveBudget; counted++; }
+          if (!closed) { cls = 'month-open'; state = 'не завершён'; open++; }
+          else if (day.eatenKcal > day.effectiveBudget) { cls = 'month-over'; state = 'перебор'; over++; }
+          else { cls = 'month-ok'; state = 'в норме'; ok++; }
+        }
+        const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} ккал, ${state}`;
+        cells.push(`<button type="button" onclick="onDatePickerChange('${day.date}')" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}" class="month-cell ${cls} ${day.date === selectedDate ? 'month-selected' : ''}">${day.day.getDate()}</button>`);
+      }
+      document.getElementById('monthGrid').innerHTML = cells.join('');
+      const fat = fatGramsFromKcal(net);
+      const fatLine = net > 0
+        ? `<div class="inline-block px-2.5 py-1 rounded-xl font-bold bg-red-600 text-white ring-1 ring-black/20">Набрано жира: ~${fat} г <span class="text-xs font-mono opacity-80">(+${net} ккал, ${counted} дн.)</span></div>`
+        : `<div class="inline-block px-2.5 py-1 rounded-xl font-bold bg-emerald-500 text-[#04291c]">Сброшено жира: ~${Math.abs(fat)} г <span class="text-xs font-mono opacity-80">(${net} ккал, ${counted} дн.)</span></div>`;
+      document.getElementById('monthSummary').innerHTML = fatLine +
+        `<div class="text-xs text-slate-500 dark:text-slate-400">в норме ${ok} · перебор ${over} · <span class="font-bold underline decoration-red-500 decoration-2">не завершено ${open}</span></div>` +
+        (open ? '<div class="text-[10px] text-slate-500 dark:text-slate-400">Считаются завершённые дни и прошлые дни с записями; пустые дни и сегодня (пока не завершён) не в счёт. В незавершённых днях записано не всё, так что жира, скорее всего, больше.</div>' : '');
+    }
+
     function renderHeroSummary() {
       const { eatenKcal, syncedBurned, manualWorkoutKcal, exerciseBonus, effectiveBudget } = getDayBudget(selectedDate);
       const includeExercise = appState.settings.includeExerciseInBudget;
@@ -1179,12 +1280,19 @@
       circle.style.strokeDashoffset = offset.toFixed(2);
       circle.style.stroke = ringColor;
 
-      if (budgetLevel === 'normal') {
-        remLabel.textContent = 'Осталось';
-        remValue.textContent = remaining;
+      // Fat instead of kcal: what today does to body fat relative to the budget.
+      const fatGrams = fatGramsFromKcal(eatenKcal - effectiveBudget);
+      const remUnit = document.getElementById('remainingUnit');
+      if (remaining >= 0) {
+        remLabel.textContent = 'Сброшу жира';
+        remValue.textContent = `\u2212${Math.abs(fatGrams)} г`;
+        remValue.style.color = 'rgb(16, 185, 129)';
+        remUnit.textContent = `ещё ${remaining} ккал`;
       } else {
-        remLabel.textContent = budgetLevel === 'danger' ? 'Перебор >10%' : 'Перебор';
-        remValue.textContent = `+${Math.abs(remaining)}`;
+        remLabel.textContent = 'Наберу жира';
+        remValue.textContent = `+${fatGrams} г`;
+        remValue.style.color = '';
+        remUnit.textContent = 'за сегодня';
       }
 
     }
@@ -1505,6 +1613,8 @@
       renderQuickChips();
       renderDailyLog();
       renderWeeklyOverview();
+      renderCloseDayButton();
+      renderMonthOverview();
     }
 
     /********************************************************************
@@ -1574,6 +1684,7 @@
         const oldHealth = { kcal: b.healthSyncKcal || 0, time: b.healthSyncTime || null };
         const newHealth = { kcal: a.healthSyncKcal || 0, time: a.healthSyncTime || null };
         if (!sameData(oldHealth, newHealth)) push('health', date, newHealth);
+        if (Boolean(b.closed) !== Boolean(a.closed)) push('closed', date, Boolean(a.closed));
       }
       return changes;
     }
@@ -1589,7 +1700,7 @@
           if (index < 0) state.presets.push(copyData(op.value));
           else state.presets[index] = copyData(op.value);
         }
-        if (op.type === 'entry-delete' || op.type === 'entry-upsert' || op.type === 'health') {
+        if (op.type === 'entry-delete' || op.type === 'entry-upsert' || op.type === 'health' || op.type === 'closed') {
           const day = state.days[op.date || op.key] ||= { entries: [], healthSyncKcal: 0, healthSyncTime: null };
           if (op.type === 'entry-delete') day.entries = day.entries.filter(e => e.id !== op.key);
           if (op.type === 'entry-upsert') {
@@ -1600,6 +1711,10 @@
           if (op.type === 'health') {
             day.healthSyncKcal = op.value.kcal;
             day.healthSyncTime = op.value.time;
+          }
+          if (op.type === 'closed') {
+            if (op.value) day.closed = true;
+            else delete day.closed;
           }
         }
       }
