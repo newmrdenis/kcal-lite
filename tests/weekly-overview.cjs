@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const html = fs.readFileSync('index.html', 'utf8');
-const helpers = html.slice(html.indexOf('    function getDayBudget('), html.indexOf('    function renderHeroSummary('));
+const helpers = html.slice(html.indexOf('    function maintenanceFor('), html.indexOf('    function renderHeroSummary('));
 const state = {settings: {dailyGoal: 1900, includeExerciseInBudget: true}, days: {}};
 const elements = {};
 const context = vm.createContext({document: {getElementById: id => elements[id] ??= {}}, escapeHtml: text => text, appState: state, getLocalDateString: (d = new Date(2026, 10, 16)) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`});
