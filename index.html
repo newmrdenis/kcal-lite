@@ -176,14 +176,10 @@
         </button>
       </div>
 
-      <!-- Right Action Buttons: Health Sync, Theme, Settings -->
+      <!-- Right Action Buttons: Theme, Settings -->
       <div class="flex items-center gap-1.5">
         <button id="remoteSyncBadge" onclick="openRemoteModal()" class="px-2 py-1.5 rounded-xl text-[10px] font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/25 transition" title="Настроить удалённое хранилище WebDAV">☁️ Не подключено</button>
 
-        <button onclick="openModal('syncModal')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 active:scale-95 transition" title="Синхронизация с Apple Health и Garmin">
-          <span>🔄</span>
-          <span>Health</span>
-        </button>
 
         <button onclick="toggleTheme()" aria-label="Тема" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 active:scale-95 transition">
           <span id="themeIcon" class="text-sm">🌙</span>
@@ -333,14 +329,14 @@
       </div>
       <button type="button" id="closeDayBtn" onclick="toggleDayClosed()" class="w-full py-2.5 rounded-2xl text-sm font-bold transition"></button>
 
-      <!-- Synced Apple Health / Garmin Active Energy Banner (shown when healthSyncKcal > 0) -->
+      <!-- Garmin active energy banner (shown when healthSyncKcal > 0); written once a day by the agent on Pica -->
       <div id="syncedActivityCard" class="hidden items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-red-500/10 to-blue-500/10 border border-red-500/25">
         <div class="flex items-center gap-2.5">
           <span class="w-8 h-8 rounded-xl bg-red-500/20 text-red-500 flex items-center justify-center text-sm font-bold">⌚</span>
           <div>
             <div class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-              <span>Apple Health / Garmin</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">Auto Sync</span>
+              <span>Garmin</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">раз в день</span>
             </div>
             <div id="syncedActivityTime" class="text-[11px] text-slate-500 dark:text-slate-400">Активная энергия за день</div>
           </div>
@@ -514,8 +510,8 @@
           <input type="checkbox" id="settingsExerciseToggle" class="w-5 h-5 accent-emerald-500 rounded cursor-pointer" />
         </div>
 
-        <!-- iOS Shortcut Name -->
-        <div class="space-y-1.5">
+        <!-- iOS Shortcut name: Apple Health sync was removed on 2026-11-24, the field stays hidden -->
+        <div class="hidden">
           <label class="block font-bold text-slate-700 dark:text-slate-200">Имя команды в iOS Shortcuts</label>
           <input
             type="text"
@@ -861,6 +857,10 @@
       return days;
     }
 
+    // Apple Health import through the URL (active_kcal, active_history) is switched off since 2026-11-24:
+    // activity comes from Garmin once a day, written into state.json by the agent on Pica.
+    const HEALTH_URL_IMPORT = false;
+
     function processUrlQueryParameters(searchString) {
       if (!searchString || searchString.length <= 1) return;
 
@@ -872,7 +872,7 @@
       const syncedMessages = [];
 
       let activityChanged = false;
-      if (params.has('active_history')) {
+      if (HEALTH_URL_IMPORT && params.has('active_history')) {
         const days = parseActiveHistory(params.get('active_history'));
         if (!days) {
           showToast('Health import failed: invalid date or calorie data.');
@@ -891,7 +891,7 @@
       }
 
       // 2. Parse Apple Health / Garmin active_kcal parameter (&active_kcal=520)
-      if (!params.has('active_history') && params.has('active_kcal')) {
+      if (HEALTH_URL_IMPORT && !params.has('active_history') && params.has('active_kcal')) {
         const activeVal = Math.round(parseFloat(params.get('active_kcal')));
         if (!isNaN(activeVal) && activeVal >= 0 && activeVal <= 15000) {
           const dayRec = ensureDayRecord(targetDate);
@@ -925,7 +925,7 @@
         if (!params.has('active_history') || foodChanged) selectedDate = targetDate;
         if (activityChanged || foodChanged) saveState();
         renderAll();
-        showToast(`Синхронизировано из Health: ${syncedMessages.join(' · ')}`, '⌚');
+        showToast(`Добавлено: ${syncedMessages.join(' · ')}`, '✅');
 
         // Clean URL query parameters so page refresh doesn't duplicate entries
         try {

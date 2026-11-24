@@ -24,22 +24,17 @@ assert.equal(new URL(window.location.href).searchParams.get('text'), '2026-11-10
 context.triggerIosShortcut('last30');
 assert.equal(new URL(window.location.href).searchParams.get('text'), 'last30');
 
+// Apple Health import through the URL is switched off (2026-11-24): both parameters are ignored.
 const importHistory = value => context.processUrlQueryParameters('?active_history=' + encodeURIComponent(value));
-importHistory('2026-11-12=520\n\n2026-11-11=310\n2026-11-12=510');
-assert.equal(saves, 1);
-assert.equal(days['2026-11-12'].healthSyncKcal, 510);
-assert.equal(days['2026-11-11'].healthSyncKcal, 310);
-assert.equal(days['2026-11-11'].entries, entries);
-time = '10:00';
-importHistory('2026-11-12=510\n2026-11-11=310');
-assert.equal(saves, 1);
-assert.equal(days['2026-11-12'].healthSyncTime, '09:00');
-importHistory('2026-11-12=123\n2026-11-31=500');
-assert.equal(saves, 1);
-assert.equal(days['2026-11-12'].healthSyncKcal, 510);
-importHistory('2026-11-10=0');
-assert.equal(context.selectedDate, '2026-11-10');
-assert.equal(days['2026-11-10'].healthSyncKcal, 0);
+importHistory('2026-11-12=520\n2026-11-11=310');
+assert.equal(saves, 0);
+assert.equal(days['2026-11-11'].healthSyncKcal, 400);
+assert.equal(days['2026-11-12'], undefined);
 context.processUrlQueryParameters('?active_kcal=200');
-assert.equal(days['2026-11-13'].healthSyncKcal, 200);
-console.log('PASS: selected date and batch launches, replacement, unchanged reimport, invalid data, legacy links');
+assert.equal(saves, 0);
+assert.equal(days['2026-11-13'], undefined);
+// Quick food entry through the URL still works.
+context.processUrlQueryParameters('?food=test&kcal=180');
+assert.equal(saves, 1);
+assert.equal(days['2026-11-13'].entries[0].kcal, 180);
+console.log('PASS: shortcut launch text, Apple Health URL import ignored, quick food entry kept');
