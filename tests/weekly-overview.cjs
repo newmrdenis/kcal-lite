@@ -45,7 +45,9 @@ assert.match(elements.weekDayRings.innerHTML, /2026-11-09/);
 assert.match(elements.weekDayRings.innerHTML, /2026-11-15.*aria-pressed="true"/);
 assert.doesNotMatch(elements.weekDayRings.innerHTML, /2026-11-16/);
 // Closed days get a check mark in the ring; open days are neutral, never red unless over budget.
-assert.equal(context.dayStatus('2026-11-15', 1200, 2100, '2026-11-02', '2026-11-16'), 'open');
+assert.equal(context.dayStatus('2026-11-15', 1200, 2100, '2026-11-02', '2026-11-16'), 'stale');
+assert.equal(context.dayStatus('2026-11-16', 1200, 2100, '2026-11-02', '2026-11-16'), 'open');
+assert.match(context.dayRingMarkup(500, 2000, 'stale', 'x'), /rgba\(239, 68, 68, 0.22\)/);
 assert.equal(context.dayStatus('2026-11-15', 2200, 2100, '2026-11-02', '2026-11-16'), 'over');
 assert.doesNotMatch(elements.weekDayRings.innerHTML, /data-closed-mark/);
 state.days['2026-11-15'].closed = true;

@@ -386,7 +386,7 @@
       <div class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
         <span class="flex items-center gap-1"><span class="font-bold text-emerald-500">✓</span>день завершён</span>
         <span class="flex items-center gap-1"><span class="month-swatch" style="border-color:rgb(16,185,129);border-radius:9999px"></span>завершён и в норме</span>
-        <span class="flex items-center gap-1"><span class="month-swatch" style="border-color:rgb(239,68,68);border-radius:9999px;background:rgba(239,68,68,.22)"></span>перебор</span>
+        <span class="flex items-center gap-1"><span class="month-swatch" style="border-color:rgb(239,68,68);border-radius:9999px;background:rgba(239,68,68,.22)"></span>перебор или прошедший день без галочки</span>
       </div>
     </section>
 
@@ -1159,12 +1159,14 @@
     }
 
     // Green only when the day is closed AND within budget; over budget is red, closed or not.
-    // An open day within budget is neutral: many past days stay open simply because nothing was logged.
+    // Today, while open and within budget, is neutral. A past day left open is 'stale': drawn red
+    // (he usually overate on such days) but never called unfinished.
     function dayStatus(date, eaten, budget, firstLogged, today) {
       if (date > today) return 'future';
       if (date < firstLogged && !dayHasData(date)) return 'none';
       if (eaten > budget) return 'over';
-      return appState.days[date]?.closed ? 'ok' : 'open';
+      if (appState.days[date]?.closed) return 'ok';
+      return date < today ? 'stale' : 'open';
     }
 
     function firstLoggedDate() {
@@ -1175,9 +1177,10 @@
     function dayRingMarkup(eaten, budget, status, label, closed = false) {
       const ratio = budget > 0 ? Math.max(0, eaten / budget) : 0;
       const green = 'rgb(16, 185, 129)', red = 'rgb(239, 68, 68)', neutral = 'rgb(100, 116, 139)';
-      const color = status === 'ok' ? green : status === 'over' ? red : neutral;
-      const fill = status === 'ok' ? 'rgba(16, 185, 129, 0.18)' : status === 'over' ? 'rgba(239, 68, 68, 0.22)' : 'none';
-      const track = status === 'over' ? 'stroke="rgba(239, 68, 68, 0.45)"' : 'class="text-slate-200 dark:text-slate-700" stroke="currentColor"';
+      const redDay = status === 'over' || status === 'stale';
+      const color = status === 'ok' ? green : redDay ? red : neutral;
+      const fill = status === 'ok' ? 'rgba(16, 185, 129, 0.18)' : redDay ? 'rgba(239, 68, 68, 0.22)' : 'none';
+      const track = redDay ? 'stroke="rgba(239, 68, 68, 0.45)"' : 'class="text-slate-200 dark:text-slate-700" stroke="currentColor"';
       const circumference = 2 * Math.PI * 40;
       const text = status === 'future' || status === 'none' ? '--' : (eaten ? Math.round(ratio * 100) + '%' : '0');
       const center = closed && (status === 'ok' || status === 'over')
@@ -1257,7 +1260,7 @@
       });
       const formatDate = date => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
       document.getElementById('monthDateRange').textContent = `${formatDate(days[0].day)} - ${formatDate(days[27].day)}`;
-      const names = { ok: 'в норме, завершён', over: 'перебор', open: 'в пределах лимита', none: 'нет данных', future: 'будущее' };
+      const names = { ok: 'в норме, завершён', over: 'перебор', open: 'в пределах лимита', stale: 'без галочки', none: 'нет данных', future: 'будущее' };
       let ok = 0, over = 0, net = 0, counted = 0;
       document.getElementById('monthGrid').innerHTML = days.map(day => {
         const status = dayStatus(day.date, day.eatenKcal, day.effectiveBudget, firstLogged, today);
@@ -1267,7 +1270,7 @@
         // Fat total: closed days, plus past open days that have entries (empty days are unknown, today is unfinished).
         const hasEntries = Boolean(appState.days[day.date]?.entries?.length);
         // Open past days count only when already over budget: a deficit there may just be unlogged food.
-        if (closed || ((status === 'open' || status === 'over') && hasEntries && day.date < today && day.eatenKcal > day.maintenanceKcal)) {
+        if (closed || ((status === 'stale' || status === 'over') && hasEntries && day.date < today && day.eatenKcal > day.maintenanceKcal)) {
           net += day.eatenKcal - day.maintenanceKcal; counted++;
         }
         const label = `${formatDate(day.day)}: ${day.eatenKcal} / ${day.effectiveBudget} ккал, ${names[status]}`;
