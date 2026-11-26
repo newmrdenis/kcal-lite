@@ -44,4 +44,16 @@ assert.equal(elements.weekTotals.textContent, '1200 / 13500 kcal');
 assert.match(elements.weekDayRings.innerHTML, /2026-11-09/);
 assert.match(elements.weekDayRings.innerHTML, /2026-11-15.*aria-pressed="true"/);
 assert.doesNotMatch(elements.weekDayRings.innerHTML, /2026-11-16/);
+// Closed days get a check mark in the ring; open days are neutral, never red unless over budget.
+assert.equal(context.dayStatus('2026-11-15', 1200, 2100, '2026-11-02', '2026-11-16'), 'open');
+assert.equal(context.dayStatus('2026-11-15', 2200, 2100, '2026-11-02', '2026-11-16'), 'over');
+assert.doesNotMatch(elements.weekDayRings.innerHTML, /data-closed-mark/);
+state.days['2026-11-15'].closed = true;
+assert.equal(context.dayStatus('2026-11-15', 1200, 2100, '2026-11-02', '2026-11-16'), 'ok');
+context.renderWeeklyOverview();
+assert.equal(elements.weekDayRings.innerHTML.match(/data-closed-mark/g).length, 1);
+context.renderMonthOverview();
+assert.equal(elements.monthGrid.innerHTML.match(/data-closed-mark/g).length, 1);
+assert.doesNotMatch(elements.monthSummary.innerHTML, /не заверш/);
+assert.doesNotMatch(context.dayRingMarkup(500, 2000, 'open', 'x'), /239, 68, 68/);
 console.log('PASS: current week, year and DST boundaries, empty days, totals, activity toggle and colors');
